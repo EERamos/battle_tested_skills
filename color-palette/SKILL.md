@@ -21,6 +21,7 @@ Un solo archivo HTML sin dependencias (salvo Google Fonts) con:
 - **Siete pestañas de control** — Color, Semántica, Tipo, UI, Gráficas, Detalle, Slides
 - **Seis vistas previas** — Página, Componentes, Gráficas, Tipografía, Presentación (10 plantillas), Tokens
 - **Medición de contraste WCAG en vivo** en cada decisión
+- **Tema oscuro derivado** de las mismas cuatro decisiones, con vista previa Claro/Oscuro y su propia auditoría
 - **Guardar** con autoguardado en el navegador, **Importar** y **Exportar**
 - Exporta **CSS**, un **DESIGN.md** completo en markdown, el mismo sistema como
   **frontmatter YAML**, **JSON** con el estado entero, el `<link>` de fuentes, y un
@@ -103,9 +104,13 @@ un hex inválido detiene el build con un mensaje claro:
   "radius": 6, "accentLevel": 1,
   "chart": ["#2A1B12","#C2703A","#7A8B6F","#E0B089","#B8B0A6","#5E7A86"],
   "semantic": {"success":150,"warning":80,"danger":25,"info":250},
-  "slides": {"cover":{"bg":"page","tx":"auto","ac":"accText"}}
+  "slides": {"cover":{"bg":"page","tx":"auto","ac":"accText"}},
+  "dark": {"page": "#101418", "ink": "#EEF1F5"}
 }
 ```
+
+`dark` es opcional: sólo se toma la luminosidad; tono y croma se heredan del
+principal. Sin él, el tema oscuro sale automático (papel L 17%, tinta L 94%).
 
 `brand.json` cambia el nombre y el copy de las vistas previas para que el
 usuario vea **su** producto, no un demo ajeno. Campos en
@@ -122,7 +127,7 @@ informan pero no cuentan como falla: WCAG no les exige contraste.
 
 Nunca entregues sin abrirlo. Como mínimo:
 
-- El archivo pesa ~185 KB y no tiene errores de consola
+- El archivo pesa ~195 KB y no tiene errores de consola
 - Las diez plantillas de slide renderizan
 - Los presets "Base" devuelven a la paleta generada, no a otra
 - La auditoría de `build.py` no reporta fallas, o las reportaste con su número
@@ -195,12 +200,13 @@ delgada.** Repórtalo cuando pase; no lo corrijas por tu cuenta.
 
 | Archivo | Contenido |
 |---|---|
-| `<marca>-tokens.css` | el `:root{}` completo más un bloque `.slide--<tipo>{}` por plantilla |
-| `<marca>-DESIGN.md` | **el documento largo**: 17 secciones con tablas de token · hex · OKLCH · contraste medido · veredicto WCAG, las reglas con sus números reales, la escala tipográfica calculada, las recetas de slide resueltas y una auditoría de ~50 pares con la lista explícita de los que no cumplen |
+| `<marca>-tokens.css` | el `:root{}` completo, el bloque del tema oscuro (`prefers-color-scheme` y `[data-theme]`) y un bloque `.slide--<tipo>{}` por plantilla |
+| `<marca>-DESIGN.md` | **el documento largo**: 18 secciones (incluye el tema oscuro) con tablas de token · hex · OKLCH · contraste medido · veredicto WCAG, las reglas con sus números reales, la escala tipográfica calculada, las recetas de slide resueltas y una auditoría de ~50 pares con la lista explícita de los que no cumplen |
 | `<marca>-design.yml` | los mismos valores como frontmatter, para pipelines |
 | `<marca>-sistema.json` | el estado completo y reimportable del editor |
 | `<marca>-fonts.html` | el `<link>` de Google Fonts |
-| `<marca>-referencia.html` | el sistema entero renderizado, autocontenido |
+| `<marca>-referencia.html` | el sistema entero renderizado, autocontenido, con botón de tema |
+| `<marca>-sistema.zip` | "Descargar todo": los seis archivos en un solo ZIP |
 
 El `DESIGN.md` se genera desde el estado vivo, así que **nunca se desincroniza** del CSS.
 Si el usuario quiere cambiarlo, mueve el control y vuelve a exportar; no edita el archivo.

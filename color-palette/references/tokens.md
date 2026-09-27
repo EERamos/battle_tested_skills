@@ -59,3 +59,14 @@ contraste. Cada slide reporta su ratio.
 Espaciado de ocho pasos desde la unidad base (×1, 2, 3, 4, 6, 10, 16, 24).
 Radios sm/md/lg/xl derivados del radio base (×0.14, 0.58, 1, 1.35).
 Bordes en tres grosores. Motion en tres duraciones más la curva.
+
+## Tema alterno
+Mismas cuatro decisiones con polaridad opuesta: si el principal es claro, el alterno es
+oscuro (papel L .17, tinta L .94 por defecto) y viceversa (papel .985, tinta .23).
+Tono y croma se heredan. `accent-text`, la señal (3:1) y los textos semánticos se
+re-resuelven contra el papel nuevo. Las slides no tienen tema alterno: usan sus recetas.
+
+## Bordes
+`--control-border` es `--line-strong` resuelto a 3:1 contra el papel (WCAG 1.4.11); lo
+usan inputs, botón secundario y deshabilitado. `--line-strong` y `--hairline` son
+decorativas y la auditoría no las cuenta como falla.
