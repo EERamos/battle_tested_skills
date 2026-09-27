@@ -21,3 +21,6 @@ Thumbs.db
 # Per-routine live fixtures policy
 # Keep the most recent run committed for replay; let older runs rotate.
 # (Adjust per routine as needed — currently nothing excluded here.)
+
+# color-palette local preview (build + http.server)
+.tmp-preview/
