@@ -84,8 +84,8 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 .sw6{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
 .sw6 input[type=color]{width:100%;height:26px;padding:0;border:1px solid var(--ui-line2);border-radius:4px;background:none;cursor:pointer}
 .rampbar{display:flex;gap:2px;margin-top:7px}
-.rampbar i{flex:1;height:26px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);transition:.15s}
-.rampbar i:hover{box-shadow:inset 0 0 0 2px var(--ui-ink);transform:translateY(-2px)}
+.rampbar>*{flex:1;height:26px;border:none;padding:0;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);transition:.15s;cursor:pointer}
+.rampbar>*:hover,.rampbar>*:focus-visible{box-shadow:inset 0 0 0 2px var(--ui-ink);transform:translateY(-2px)}
 .exp{position:fixed;inset:0;background:rgba(21,44,81,.6);display:none;place-items:center;z-index:400;padding:24px}
 .exp.on{display:grid}
 .exp-in{background:#fff;border-radius:16px;max-width:820px;width:100%;max-height:86vh;overflow:auto;padding:26px}
@@ -719,7 +719,7 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 <div class="exp" id="impM"><div class="exp-in">
   <h3>Importar sistema</h3>
   <p style="font-size:13px;margin-bottom:10px">Pega el bloque <strong>JSON</strong> (restaura todo, incluidas las recetas de slide) o el bloque <strong>CSS <code>:root</code></strong> (restaura los tokens de color, tipo, botón, sombra, spacing y gráficas).</p>
-  <textarea id="impTxt" spellcheck="false" style="width:100%;height:280px;font-family:var(--mono);font-size:11px;line-height:1.5;padding:12px;border:1px solid var(--ui-line2);border-radius:9px;background:var(--ui-panel);color:var(--ui-ink);resize:vertical"></textarea>
+  <textarea id="impTxt" aria-label="Sistema a importar: JSON o CSS :root" spellcheck="false" style="width:100%;height:280px;font-family:var(--mono);font-size:11px;line-height:1.5;padding:12px;border:1px solid var(--ui-line2);border-radius:9px;background:var(--ui-panel);color:var(--ui-ink);resize:vertical"></textarea>
   <p class="hint" id="impLog" style="min-height:18px"></p>
   <div class="acts" style="margin-top:12px"><button class="p" id="impGo">Aplicar</button><button class="s" id="impX">Cancelar</button></div>
 </div></div>
@@ -1387,9 +1387,9 @@ function paint(){
       cxe.appendChild(d);});}
   $('sw-page').style.background=t.page;$('sw-ink').style.background=t.ink;$('sw-acc').style.background=t.acc;$('sw-sig').style.background=t.sig;
   var bar=function(id,arr,pick,labels){var e=$(id);if(!e)return;e.innerHTML='';
-    arr.forEach(function(c,n){var i=document.createElement('i');i.style.background=c;
+    arr.forEach(function(c,n){var i=document.createElement('button');i.type='button';i.style.background=c;
       i.title=(labels?labels[n]+' · ':'')+c+(pick?' · clic para adoptar':' · clic para copiar');
-      i.style.cursor='pointer';
+      i.setAttribute('aria-label',(labels?labels[n]+' ':'')+c+(pick?', adoptar':', copiar'));
       i.addEventListener('click',function(){ if(pick){pick(c);} else {copy(c,'Copiado '+c);} });
       e.appendChild(i);});};
   bar('rampAcc',t.accScale,function(c){var o=toOK(c);S.aL=o.L;S.aC=o.C;S.aH=o.H;setAll();clearP('pre-acc');paint();say('Acento '+c);},t.accNames);
@@ -1459,6 +1459,8 @@ function paint(){
     var d=document.createElement('div');d.className='tkc';d.style.cursor='pointer';
     d.innerHTML='<div class="sw" style="background:'+p[2]+'"></div><div class="nm">'+p[1]+'</div><div class="hx">'+p[2]+'</div>';
     d.addEventListener('click',function(){copy(p[2],'Copiado '+p[2]);});
+    d.tabIndex=0;d.setAttribute('role','button');d.setAttribute('aria-label','Copiar '+p[1]+' '+p[2]);
+    d.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();copy(p[2],'Copiado '+p[2]);}});
     tk.appendChild(d);});
 
   /* inputs */
@@ -1697,7 +1699,7 @@ bindHex('sPick','sHex',function(v){S.sig=v;});bindHex('posPick','posHex',functio
 bindHex('negPick','negHex',function(v){S.neg=v;});bindHex('bmPick','bmHex',function(v){S.bm=v;});
 bindHex('hlPick','hlHex',function(v){S.hl=v;});
 function rebuildCustomSwatches(){var w=$('chCustom');w.innerHTML='';
-  S.chCustom.forEach(function(c,i){var inp=document.createElement('input');inp.type='color';inp.value=c;
+  S.chCustom.forEach(function(c,i){var inp=document.createElement('input');inp.type='color';inp.value=c;inp.setAttribute('aria-label','Serie '+(i+1));
     inp.addEventListener('input',function(){S.chCustom[i]=inp.value.toUpperCase();paint();});w.appendChild(inp);});}
 rebuildCustomSwatches();
 $('fixink').addEventListener('click',function(){S.iL=S.pL>.55?.296:.95;setAll();paint();say('Tinta invertida');});
@@ -1720,6 +1722,38 @@ $('thSave').addEventListener('click',function(){THEMES[curTheme]=JSON.parse(JSON
 $('thLoad').addEventListener('click',function(){var th=THEMES[curTheme];if(!th){say('Slot vacío');return;}
   S.rc=JSON.parse(JSON.stringify(th.rc));S.lvl=th.lvl;press('lvl',String(S.lvl));
   $('recipes').dataset.built='0';paint();thLabel();say('Slot '+(curTheme+1)+' cargado');});
+
+/* ============ ACCESIBILIDAD ============ */
+function a11yLabels(){
+  var RS={}; ROLE_SELECTS.forEach(function(r){RS[r[0]]=r[1];});
+  document.querySelectorAll('input,select,textarea').forEach(function(el){
+    if(el.getAttribute('aria-label')||(el.labels&&el.labels.length))return;
+    var name='', sl=el.closest('.sl'), rr=el.closest('.rr'), grp=el.closest('.grp');
+    if(RS[el.id]) name=RS[el.id];
+    else if(sl){var lb=sl.querySelector('label'); if(lb)name=lb.textContent.trim();}
+    else if(rr){var rec=rr.closest('.rec'), st=rec&&SLIDE_TYPES.filter(function(s){return s[0]===rec.dataset.k;})[0];
+      var lb2=rr.querySelector('label'); name=(st?st[1]+' · ':'')+(lb2?lb2.textContent.trim():'');}
+    else if(el.previousElementSibling&&el.previousElementSibling.classList.contains('sl-h')){
+      var lb3=el.previousElementSibling.querySelector('label'); if(lb3)name=lb3.textContent.trim();}
+    else if(el.type==='color') name='selector de color';
+    else if(el.type==='text') name='hex';
+    var g=grp&&grp.querySelector('h2')?grp.querySelector('h2').textContent.trim():'';
+    if(g&&name.indexOf(g)<0) name=name?g+' · '+name:g;
+    el.setAttribute('aria-label',name||el.id||el.type);
+  });
+}
+function tabsA11y(id){
+  var box=$(id); if(!box)return;
+  var tabs=function(){return Array.prototype.filter.call(box.children,function(b){return b.tagName==='BUTTON';});};
+  var sync=function(){tabs().forEach(function(b){var on=b.classList.contains('on');
+    b.setAttribute('role','tab');b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;});};
+  box.setAttribute('role','tablist'); sync();
+  box.addEventListener('click',sync);
+  box.addEventListener('keydown',function(e){
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    var bs=tabs(),i=bs.indexOf(document.activeElement); if(i<0)return;
+    e.preventDefault(); var n=bs[(i+(e.key==='ArrowRight'?1:bs.length-1))%bs.length]; n.focus(); n.click();});
+}
 
 /* toast + copy */
 var toast=$('toast'),tId;
@@ -2535,7 +2569,7 @@ function refreshUI(){
 }
 /* engancha el guardado a cada repintado */
 var _paint=paint;
-paint=function(){_paint();saveState();};
+paint=function(){_paint();a11yLabels();saveState();};
 
 var restored=restoreState();
 applyBrand();
@@ -2546,6 +2580,8 @@ if(restored==='restored'){$('recipes').dataset.built='0';['pre-page','pre-acc','
 paint();
 thLabel();
 markSaved();
+/* después de todos los handlers de clic: sync lee la clase 'on' ya actualizada */
+tabsA11y('tabs');tabsA11y('ptabs');tabsA11y('expTabs');
 if(restored==='restored') say('Sesión anterior restaurada');
 if(restored==='stale') actionToast('Hay una sesión guardada de otra versión de este archivo',[
   ['Restaurar',function(){try{applySaved(JSON.parse(LS.getItem(LSK+'-prev')));LS.removeItem(LSK+'-prev');}catch(e){}
