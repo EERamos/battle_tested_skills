@@ -1,36 +1,21 @@
 #!/usr/bin/env python3
 """
-build.py — genera el editor de paleta a partir de la plantilla.
+build.py - genera el editor de paleta a partir de la plantilla.
 
-Uso mínimo (paleta por defecto):
-    python3 scripts/build.py --out docs/business/brand/color-palette.html
+Uso minimo (paleta por defecto):
+    python scripts/build.py --out docs/business/brand/color-palette.html
 
-Con marca y colores propuestos:
-    python3 scripts/build.py \
-        --out docs/business/brand/color-palette.html \
-        --brand brand.json \
-        --palette palette.json
+Con marca, colores propuestos y el estado que el usuario ya edito:
+    python scripts/build.py         --out docs/business/brand/color-palette.html         --state color-palette-sistema.json         --palette palette.json         --brand brand.json
 
-palette.json admite hexes (se convierten a los parámetros internos) y/o
-parámetros directos. Todo lo que no declares conserva el valor por defecto.
+palette.json acepta claves legibles (page, ink, accent, signal, chart, semantic,
+fontDisplay, ...) y cualquier clave interna del estado (bShape, rad, ...). Las
+claves desconocidas o un chart que no tenga 6 series se reportan; un hex
+invalido termina con exit 2.
 
-    {
-      "page":   "#FBFCFE",
-      "ink":    "#151B33",
-      "accent": "#12716B",
-      "signal": "#8A4FD3",
-      "fontDisplay": "Manrope",
-      "fontBody":    "Public Sans",
-      "fontMono":    "Roboto Mono",
-      "radius": 17,
-      "chart":  ["#151B33","#12716B","#5A6472","#7A4FB5","#9A6A18","#2A6E8F"],
-      "semantic": {"success":156.7,"warning":71.9,"danger":26.9,"info":251.8},
-      "slides": {"cover":{"bg":"page","tx":"auto","ac":"accText"}}
-    }
-
-Cada valor se valida contra el contraste WCAG antes de escribir y el script
-imprime un reporte. Nunca falla en silencio: si una elección no alcanza el
-mínimo, lo dice y sigue, porque la decisión es del usuario, no del script.
+La auditoria de contraste es la del editor: build.py ejecuta el motor JS de la
+plantilla con node y reporta los mismos pares que el DESIGN.md. Sin node imprime
+un chequeo parcial de 6 pares marcado [parcial].
 """
 from __future__ import annotations
 

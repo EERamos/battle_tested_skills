@@ -18,7 +18,7 @@ y el medidor.** Una propuesta se discute; una herramienta se usa.
 
 Un solo archivo HTML sin dependencias (salvo Google Fonts) con:
 
-- **Seis pestañas de control** — Color, Semántica, Tipo, UI, Gráficas, Detalle, Slides
+- **Siete pestañas de control** — Color, Semántica, Tipo, UI, Gráficas, Detalle, Slides
 - **Seis vistas previas** — Página, Componentes, Gráficas, Tipografía, Presentación (10 plantillas), Tokens
 - **Medición de contraste WCAG en vivo** en cada decisión
 - **Guardar** con autoguardado en el navegador, **Importar** y **Exportar**
@@ -40,7 +40,7 @@ Revisa, en este orden, lo que exista en el repo:
 | `PRODUCT.md` o `docs/business/**/PRODUCT.md` | audiencia, personalidad, anti-referencias, tono |
 | `docs/business/**/business_identity.md` | posicionamiento, voz, colores declarados |
 | `index.html`, `css/*.css` del landing | los hexes que ya están en producción |
-| `docs/business/brand/color-palette.html` | si ya existe, **lee su bloque JSON y parte de ahí** |
+| `docs/business/brand/color-palette.html` | si ya existe, pide al usuario el `-sistema.json` exportado (sus ediciones viven en el navegador, no en el HTML) y constrúyelo con `--state` |
 
 Si no hay nada, sigue con el default y dilo.
 
@@ -50,7 +50,7 @@ copy de relleno genérico y los archivos salen como `color-palette-*`. Nunca
 aparece el nombre de otro cliente. Si el usuario te da un nombre, pásalo en
 `brand.json` y todo se renombra solo.
 
-**El default neutral está medido** y pasa los seis chequeos de `build.py`:
+**El default neutral está medido** y pasa los 50 pares de la auditoría:
 papel `#FBFCFE`, tinta `#151B33` (croma 0.047, por encima del umbral de
 visibilidad), acento teal `#12716B` a 5.68:1, señal violeta `#8A4FD3` a 4.94:1
 con 113° de separación del acento, y seis series de gráfica todas por encima de
@@ -76,20 +76,25 @@ punto de partida editable, no un veredicto.
 ### 3. Construye
 
 ```bash
-python3 scripts/build.py --out docs/business/brand/color-palette.html
+python scripts/build.py --out docs/business/brand/color-palette.html
 ```
 
-Con propuesta y marca:
+Con propuesta, marca y (si existe) el estado que el usuario ya editó:
 
 ```bash
-python3 scripts/build.py \
+python scripts/build.py \
   --out docs/business/brand/color-palette.html \
-  --palette /tmp/palette.json \
-  --brand /tmp/brand.json
+  --state color-palette-sistema.json \
+  --palette palette.json \
+  --brand brand.json
 ```
 
+En macOS/Linux puede ser `python3`.
+
 `palette.json` acepta hexes legibles; el script los convierte a los parámetros
-internos y deriva el resto:
+internos y deriva el resto. También acepta cualquier clave interna del estado
+(`bShape`, `rad`, …). Una clave desconocida o un `chart` sin 6 series se avisan;
+un hex inválido detiene el build con un mensaje claro:
 
 ```json
 {
@@ -107,34 +112,34 @@ usuario vea **su** producto, no un demo ajeno. Campos en
 `references/brand-fields.md`. Es opcional: sin él la plantilla se queda
 genérica, nunca hereda una marca anterior.
 
-El script imprime una **auditoría de contraste**. Léela y repórtala; no la
-escondas. Si algo no alcanza el mínimo, dilo con el número.
+El script imprime la **misma auditoría que el DESIGN.md** (ejecuta el motor del editor
+con node): pares medidos, cuántos no cumplen y cuáles. Repórtala tal cual. Si dice
+`[parcial]`, no hay node: dilo y aclara que la auditoría completa está en el DESIGN.md.
+Los pares **decorativos** (líneas que no delimitan un control, texto deshabilitado) se
+informan pero no cuentan como falla: WCAG no les exige contraste.
 
 ### 4. Verifica antes de entregar
 
 Nunca entregues sin abrirlo. Como mínimo:
 
-- El archivo pesa ~170 KB y no tiene errores de consola
+- El archivo pesa ~185 KB y no tiene errores de consola
 - Las diez plantillas de slide renderizan
 - Los presets "Base" devuelven a la paleta generada, no a otra
-- La pestaña **DESIGN.md** del modal de exportación trae contenido y su auditoría
-  cuadra con la que imprimió `build.py`
-- No aparece ningún nombre de marca que el usuario no te haya dado: busca en el
-  HTML generado el nombre de cualquier cliente anterior y el de la plantilla; debe
-  dar cero coincidencias
+- La auditoría de `build.py` no reporta fallas, o las reportaste con su número
+- `build.py` no avisó de claves desconocidas ni de marca heredada de la plantilla
 
 Si tienes navegador disponible, ábrelo y toma una captura. Si no, verifica el
 tamaño y que el HTML contenga `TOKENS_END`, `#slGrid`, `btn-save` y `buildMarkdown`.
 
 ### 5. Entrega
 
-Manda el archivo con `SendUserFile` y, si hay puente al disco del usuario,
-escríbelo también en `docs/business/brand/color-palette.html`. **Confirma el
-tamaño en disco contra el que construiste** — un commit que no llega es el
-error más caro de esta skill.
+En Claude Code el archivo ya queda escrito en `docs/business/brand/color-palette.html`;
+confirma que el tamaño en disco es el que imprimió `build.py`. Si tienes `SendUserFile`,
+mándalo también.
 
-Explica en dos líneas: qué propusiste y por qué, qué midió mal, y que el
-control es suyo.
+Explica en dos líneas: qué propusiste y por qué, qué midió mal, y que el control es suyo.
+Recuérdale que sus ediciones viven en el navegador: si más adelante quiere reconstruir,
+debe exportar el JSON y pasártelo (`--state`).
 
 ---
 
@@ -160,6 +165,9 @@ tercer nivel (`faint`) se distingue por tamaño y peso, no por luminancia.
 
 **Los indicadores de foco necesitan 3:1** contra el fondo adyacente (WCAG 2.2).
 Un anillo grueso de un color claro sigue siendo invisible.
+
+**Los bordes de control necesitan 3:1** (WCAG 1.4.11). Por eso existe `--control-border`,
+resuelto a 3:1; `--line-strong` y `--hairline` son decorativas y pueden quedar debajo.
 
 **Verde y rojo solo en datos.** Positivo y negativo de gráfica son el único uso
 sancionado; para estados de interfaz están los cuatro tokens semánticos.
