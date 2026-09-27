@@ -242,6 +242,28 @@ def run_js(template: str, state: State, expr: str,
     return json.loads(proc.stdout)
 
 
+def ascii_text(s: str) -> str:
+    """Pliega a ASCII para la consola de Windows (cp1252)."""
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+
+
+def theme_label(page_l: float) -> str:
+    return "tema oscuro" if page_l < 0.55 else "tema claro"
+
+
+def print_engine_audit(result: dict[str, Any], state: State) -> None:
+    """Imprime el mismo conteo que la seccion de auditoria del DESIGN.md."""
+    alt_l = 0.985 if state["pL"] < 0.55 else 0.17
+    for key, page_l in (("main", state["pL"]), ("alt", alt_l)):
+        pairs = result.get(key)
+        if not pairs:
+            continue
+        fails = [p for p in pairs if not p["ok"]]
+        print(f"  auditoria ({theme_label(page_l)}): {len(pairs)} pares, {len(fails)} no cumplen")
+        for p in fails:
+            print(f"    [x] {ascii_text(p['par'])}: {p['cr']:.2f}:1 (minimo {p['min']})")
+
+
 # ------------------------------------------------------------------ build ---
 def apply_palette(state, pal, report):
     """Traduce una propuesta legible a los parámetros internos del editor."""
@@ -303,8 +325,9 @@ def apply_palette(state, pal, report):
     return state
 
 
-def audit(state, report):
-    """Mide lo que el editor va a mostrar y avisa de lo que no alcanza."""
+def audit(state: State, checks: list[tuple[str, str]]) -> dict[str, str]:
+    """Chequeo parcial en Python (6 pares): respaldo cuando no hay node."""
+    report = checks
     page = from_oklch(state["pL"], state["pC"], state["pH"])
     ink = from_oklch(state["iL"], state["iC"], state["iH"])
     acc = from_oklch(state["aL"], state["aC"], state["aH"])
@@ -386,19 +409,35 @@ def main():
         brand.update(json.load(open(args.brand, encoding="utf-8")))
     brand.pop("railTitle", None)
 
-    resolved = audit(state, report)
+    checks: list[tuple[str, str]] = []
+    resolved = audit(state, checks)
+    engine: Any = None
+    engine_err = ""
+    try:
+        engine = run_js(template, state, "auditState(S)")
+    except EngineError as exc:
+        engine_err = str(exc)
 
     out = render(template, state, brand)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
-    open(args.out, "w", encoding="utf-8").write(out)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(out)
 
-    print(f"Escrito {args.out} ({len(out):,} bytes)")
-    print(f"  marca   {brand.get('name', '(sin nombre)')}")
+    print(f"Escrito {args.out} ({os.path.getsize(args.out):,} bytes)")
+    print(f"  marca   {ascii_text(brand.get('name') or '(sin nombre)')}")
     print(f"  papel   {resolved['page']}   tinta {resolved['ink']}")
     print(f"  acento  {resolved['accent']}   accent-text {resolved['accentText']}")
-    print("  auditoria:")
     for tag, msg in report:
-        print(f"    [{tag}] {msg}")
+        print(f"    [{tag}] {ascii_text(msg)}")
+    if isinstance(engine, dict):
+        print_engine_audit(engine, state)
+    else:
+        if engine_err:
+            print(f"    [aviso] el motor JS fallo: {ascii_text(engine_err)}")
+        print("  [parcial] 6 pares medidos en Python; instala node para la auditoria "
+              "completa (la misma del DESIGN.md)")
+        for tag, msg in checks:
+            print(f"    [{tag}] {ascii_text(msg)}")
 
 
 if __name__ == "__main__":
