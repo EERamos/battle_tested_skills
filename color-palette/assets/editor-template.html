@@ -159,7 +159,7 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 .scope a.link{color:var(--link);text-decoration-line:var(--lnk-dl);text-underline-offset:var(--lnk-do);text-decoration-thickness:var(--lnk-dw)}
 .scope a.link:hover{color:var(--link-hover)}
 .scope ::selection{background:var(--sel-bg);color:var(--sel-fg)}
-.scope .field{display:flex;align-items:center;gap:9px;border:var(--bd-2) solid var(--line-strong);border-radius:var(--btn-r);padding:11px 16px;max-width:380px;margin-top:var(--sp-3)}
+.scope .field{display:flex;align-items:center;gap:9px;border:var(--bd-2) solid var(--control-border);border-radius:var(--btn-r);padding:11px 16px;max-width:380px;margin-top:var(--sp-3)}
 .scope .field:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--focus-soft)}
 .scope .field input{border:none;background:transparent;outline:none;font-family:var(--fbody);font-size:var(--fs);color:var(--ink);width:100%}
 /* banners semánticos */
@@ -1243,15 +1243,13 @@ function auditState(st){
 
 /* ============ PAINT ============ */
 function paint(){
-  var t=derive(),lv=S.lvl,useAcc=lv>=1;
-  var ground=lv>=3?t.accDeep:t.ink, btnBg=lv>=2?t.accDeep:t.ink;
-  var onG=CR('#FFFFFF',ground)>=CR(t.ink,ground)?'#FFFFFF':t.ink;
-  var btnFg=CR('#FFFFFF',btnBg)>=CR(t.page,btnBg)?'#FFFFFF':t.page;
-  var sh=shadows(t),r=S.rad,ser=chartSeries(t),serD=seriesDark(ser,t);
+  var C0=deriveCtx(S),t=C0.t,lv=S.lvl,useAcc=lv>=1;
+  var ground=C0.ground, btnBg=C0.btnBg, onG=C0.onG, btnFg=C0.btnFg;
+  var sh=shadows(t),r=S.rad,ser=C0.ser,serD=C0.serD;
   var ease={expo:'cubic-bezier(0.16,1,0.3,1)',smooth:'cubic-bezier(0.4,0,0.2,1)',linear:'linear'}[S.easeSel];
   var s=scope.style,set=function(k,v){s.setProperty(k,v);};
 
-  set('--page',t.page);set('--surface',t.surface);set('--surface-2',t.surf2);set('--hairline',t.hair);set('--line-strong',t.lineS);
+  set('--page',t.page);set('--surface',t.surface);set('--surface-2',t.surf2);set('--hairline',t.hair);set('--line-strong',t.lineS);set('--control-border',t.ctlBd);
   set('--text-body',t.body);set('--text-muted',t.muted);set('--text-faint',t.faint);
   set('--ink',t.ink);set('--signal',t.sig);set('--accent',t.acc);set('--accent-text',t.accText);
   t.accScale.forEach(function(c,i){set('--accent-'+t.accNames[i],c);});
@@ -1288,14 +1286,14 @@ function paint(){
   set('--chip-line', OK(.89, Math.min(.06,co.C*.32), co.H));
   set('--ground',ground);set('--on-ground',onG);
   set('--on-ground-soft',onG==='#FFFFFF'?'rgba(255,255,255,.76)':'rgba(21,44,81,.76)');
-  set('--btn-bg',btnBg);set('--btn-fg',btnFg);set('--btn-sb',t.lineS);
+  set('--btn-bg',btnBg);set('--btn-fg',btnFg);set('--btn-sb',t.ctlBd);
   ['success','warning','danger','info'].forEach(function(n){
     set('--'+n,t[n]);set('--'+n+'-wash',t[n+'Wash']);set('--'+n+'-line',t[n+'Line']);set('--'+n+'-text',t[n+'Text']);});
   set('--focus',t.focus);set('--focus-w',S.focW+'px');set('--focus-o',S.focO+'px');
   set('--focus-soft','rgba('+rgbs(t.focus)+',.20)');
   set('--disabled-bg',t.disBg);set('--disabled-fg',t.disFg);set('--disabled-bd',t.disBd);set('--disabled-o',S.dis.toFixed(2));
   set('--link',t.link);set('--link-hover',t.linkHover);
-  set('--sel-bg',t.sel);set('--sel-fg',CR('#FFFFFF',t.sel)>=CR(t.ink,t.sel)?'#FFFFFF':t.page);
+  set('--sel-bg',t.sel);set('--sel-fg',CR('#FFFFFF',t.sel)>=CR(t.page,t.sel)?'#FFFFFF':t.page);
   set('--scrim','linear-gradient(to top, rgba('+rgbs(t.inkDeep)+','+S.scr.toFixed(2)+'), rgba('+rgbs(t.inkDeep)+','+(S.scr*0.15).toFixed(2)+'))');
 
   loadFont(S.fDisp);loadFont(S.fBody);loadFont(S.fMono);
@@ -1750,34 +1748,8 @@ function buildMarkdown(){
   var sigOK=toOK(t.sig), accOK={L:S.aL,C:S.aC,H:S.aH}, inkOK={L:S.iL,C:S.iC,H:S.iH};
   var crAcc=CR(t.acc,P), crAccT=CR(t.accText,P), dAS=dHue(S.aH,sigOK.H);
 
-  /* ---------- auditoría (se calcula antes para poder resumirla arriba) ---------- */
-  var AUD=[
-    ['Cuerpo de texto sobre el fondo',t.body,P,4.5],
-    ['Texto secundario (muted) sobre el fondo',t.muted,P,4.5],
-    ['Texto tenue (faint) sobre el fondo',t.faint,P,3],
-    ['Tinta sobre el fondo',t.ink,P,4.5],
-    ['Enlace sobre el fondo',t.link,P,4.5],
-    ['Enlace en hover sobre el fondo',t.linkHover,P,4.5],
-    ['Acento base sobre el fondo',t.acc,P,3],
-    ['Accent-text sobre el fondo',t.accText,P,4.5],
-    ['Señal sobre el fondo',t.sig,P,3],
-    ['Anillo de foco sobre el fondo',t.focus,P,3],
-    ['Línea fuerte sobre el fondo',t.lineS,P,3],
-    ['Texto del botón sólido sobre el botón',x.btnFg,x.btnBg,4.5],
-    ['Texto sobre superficie oscura',x.onG,x.ground,4.5],
-    ['Texto deshabilitado sobre su fondo',t.disFg,t.disBg,3],
-    ['Texto sobre el resalte de selección',CR('#FFFFFF',t.sel)>=CR(t.ink,t.sel)?'#FFFFFF':P,t.sel,4.5]
-  ];
-  ['success','warning','danger','info'].forEach(function(n,i){
-    var lbl=['Éxito','Aviso','Peligro','Info'][i];
-    AUD.push([lbl+': texto sobre su wash',t[n+'Text'],t[n+'Wash'],4.5]);
-    AUD.push([lbl+': color base sobre el fondo',t[n],P,3]);
-  });
-  x.ser.forEach(function(c,i){AUD.push(['Serie de gráfica '+(i+1)+' sobre el fondo',c,P,3]);});
-  SLIDE_TYPES.forEach(function(st){var rr=resolveRecipe(st[0],t);
-    AUD.push(['Slide · '+st[1]+': texto sobre su fondo',rr.tx,rr.bg,4.5]);
-    AUD.push(['Slide · '+st[1]+': realce sobre su fondo',rr.ac,rr.bg,3]);});
-  var fails=AUD.filter(function(a){return CR(a[1],a[2])<a[3];});
+  /* ---------- auditoría: la misma función que imprime build.py ---------- */
+  var AR=auditState(S), AUD=AR.main, fails=AUD.filter(function(a){return !a.ok;});
 
   /* ---------- portada ---------- */
   W('# '+(NM?NM+' — Sistema de diseño':'Sistema de diseño'));
@@ -2130,26 +2102,26 @@ function buildMarkdown(){
 
   /* ---------- 15. auditoría ---------- */
   H(2,'15. Auditoría de contraste');
-  W('**'+AUD.length+' pares medidos.** '+(AUD.length-fails.length)+' cumplen su mínimo, '+fails.length+' no.');
+  W('**'+AUD.length+' pares medidos.** '+(AUD.length-fails.length)+' cumplen su mínimo, '+fails.length+' no. '+
+    'Los pares **decorativos** se miden e informan pero no cuentan como falla: WCAG no les exige contraste '+
+    '(líneas que no delimitan un control; componentes deshabilitados, 1.4.3).');
   W('');
   if(fails.length){
     W('### No cumplen');
     W('');
-    T(['Par','Medido','Mínimo','Diferencia'],
-      fails.map(function(a){var m=CR(a[1],a[2]);
-        return [a[0],m.toFixed(2)+':1',a[3].toFixed(1)+':1','−'+(a[3]-m).toFixed(2)];}));
-    W('Cada fila de arriba es una decisión, no necesariamente un error: un acento decorativo que');
-    W('no lleva texto puede quedarse por debajo de 4.5:1 a propósito. Lo que no puede pasar es');
+    T(['Par','Rol','Medido','Mínimo','Diferencia'],
+      fails.map(function(a){return [a.par,a.rol,a.cr.toFixed(2)+':1',a.min.toFixed(1)+':1','−'+(a.min-a.cr).toFixed(2)];}));
+    W('Cada fila de arriba es una decisión, no necesariamente un error. Lo que no puede pasar es');
     W('que quede ahí **sin que nadie lo sepa**.');
   } else {
-    W('Sin excepciones. Todos los pares medidos alcanzan su mínimo.');
+    W('Sin excepciones. Todos los pares exigibles alcanzan su mínimo.');
   }
   W('');
   W('### Todos los pares');
   W('');
-  T(['Par','Medido','Mínimo','Cumple'],
-    AUD.map(function(a){var m=CR(a[1],a[2]);
-      return [a[0],m.toFixed(2)+':1',a[3].toFixed(1)+':1',m>=a[3]?'sí':'**no**'];}));
+  T(['Par','Rol','Medido','Mínimo','Cumple'],
+    AUD.map(function(a){return [a.par,a.rol,a.cr.toFixed(2)+':1',a.min.toFixed(1)+':1',
+      a.rol==='decorativo'?'n/a':(a.ok?'sí':'**no**')];}));
 
   /* ---------- 16. reglas ---------- */
   H(2,'16. Reglas que este sistema hace cumplir');
@@ -2203,7 +2175,7 @@ $('expTabs').addEventListener('click',function(e){var b=e.target.closest('button
   document.querySelectorAll('.exp-pane').forEach(function(p){p.classList.toggle('on',p.dataset.e===b.dataset.e);});});
 $('btn-exp').addEventListener('click',function(){
   var t=window.__T,x=window.__X,r=S.rad,sp=[1,2,3,4,6,10,16,24].map(function(m){return S.spb*m;});
-  var css=':root{\n  /* superficie */\n  --page:'+t.page+';\n  --surface:'+t.surface+';\n  --surface-2:'+t.surf2+';\n  --hairline:'+t.hair+';\n  --line-strong:'+t.lineS+';\n'+
+  var css=':root{\n  /* superficie */\n  --page:'+t.page+';\n  --surface:'+t.surface+';\n  --surface-2:'+t.surf2+';\n  --hairline:'+t.hair+';\n  --line-strong:'+t.lineS+';\n  --control-border:'+t.ctlBd+';\n'+
   '  /* tinta */\n  --ink:'+t.ink+';\n  --ink-soft:'+t.inkSoft+';\n  --ink-deep:'+t.inkDeep+';\n'+
   '  /* texto */\n  --text-body:'+t.body+';\n  --text-muted:'+t.muted+';\n  --text-faint:'+t.faint+';\n'+
   '  /* escala de acento */\n'+t.accScale.map(function(c,i){return '  --accent-'+t.accNames[i]+':'+c+';';}).join('\n')+'\n'+
@@ -2249,7 +2221,7 @@ $('btn-exp').addEventListener('click',function(){
 
   var rcy=SLIDE_TYPES.map(function(stp){var k=stp[0],rr=resolveRecipe(k,t);
     return '    '+k+': { bg: "'+S.rc[k].bg+'" ('+rr.bg+'), text: "'+S.rc[k].tx+'" ('+rr.tx+'), accent: "'+S.rc[k].ac+'" ('+rr.ac+'), contrast: '+rr.cr.toFixed(2)+' }';}).join('\n');
-  var yml='colors:\n  page: "'+t.page+'"\n  surface: "'+t.surface+'"\n  surface-2: "'+t.surf2+'"\n  hairline: "'+t.hair+'"\n  line-strong: "'+t.lineS+'"\n'+
+  var yml='colors:\n  page: "'+t.page+'"\n  surface: "'+t.surface+'"\n  surface-2: "'+t.surf2+'"\n  hairline: "'+t.hair+'"\n  line-strong: "'+t.lineS+'"\n  control-border: "'+t.ctlBd+'"\n'+
   '  ink: "'+t.ink+'"\n  ink-soft: "'+t.inkSoft+'"\n  ink-deep: "'+t.inkDeep+'"\n'+
   '  text-body: "'+t.body+'"\n  text-muted: "'+t.muted+'"\n  text-faint: "'+t.faint+'"\n'+
   '  accent: "'+t.acc+'"\n  accent-deep: "'+t.accDeep+'"\n  accent-text: "'+t.accText+'"\n  accent-wash: "'+t.accWash+'"\n  accent-line: "'+t.accLine+'"\n'+
@@ -2281,7 +2253,7 @@ $('btn-exp').addEventListener('click',function(){
   '  recipes:\n'+rcy;
 
   var json=JSON.stringify({__designsys:2,savedAt:new Date().toISOString(),S:S,THEMES:THEMES,
-    resolved:{colors:{page:t.page,surface:t.surface,surface2:t.surf2,hairline:t.hair,lineStrong:t.lineS,
+    resolved:{colors:{page:t.page,surface:t.surface,surface2:t.surf2,hairline:t.hair,lineStrong:t.lineS,controlBorder:t.ctlBd,
       ink:t.ink,inkSoft:t.inkSoft,inkDeep:t.inkDeep,textBody:t.body,textMuted:t.muted,textFaint:t.faint,
       accent:t.acc,accentDeep:t.accDeep,accentText:t.accText,accentScale:t.accScale,signal:t.sig,
       ground:x.ground,btnBg:x.btnBg,btnFg:x.btnFg},
