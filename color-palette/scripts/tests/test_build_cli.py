@@ -72,3 +72,18 @@ def test_printed_size_equals_disk(tmp_path: Path) -> None:
     m = re.search(r"\(([\d,]+) bytes\)", proc.stdout)
     assert m, proc.stdout
     assert int(m.group(1).replace(",", "")) == os.path.getsize(out)
+
+
+def test_dark_block_sets_alt_lightness(tmp_path: Path) -> None:
+    pal = {"dark": {"page": "#101418", "ink": "#EEF1F5"}}
+    proc, out = run_build(tmp_path, "--palette", write_json(tmp_path, "p.json", pal))
+    html = out.read_text(encoding="utf-8")
+    assert proc.returncode == 0, proc.stderr
+    assert re.search(r'"altPageL": 0\.1[0-9]+', html)
+    assert re.search(r'"altInkL": 0\.9[0-9]+', html)
+
+
+def test_dark_block_warns_when_hue_is_dropped(tmp_path: Path) -> None:
+    pal = {"dark": {"page": "#3A0A0A"}}
+    proc, _ = run_build(tmp_path, "--palette", write_json(tmp_path, "p.json", pal))
+    assert "solo se usa la luminosidad" in proc.stdout

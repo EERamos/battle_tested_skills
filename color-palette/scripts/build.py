@@ -374,6 +374,20 @@ def apply_palette(state: State, pal: dict[str, Any],
     for name, rec in (pal.get("slides") or {}).items():
         if name in state["rc"]:
             state["rc"][name].update(rec)
+
+    dark = pal.get("dark") or {}
+    if not isinstance(dark, dict):
+        raise PaletteError("'dark' debe ser un objeto {page, ink, accent}")
+    for src, key, hue_key in (("page", "altPageL", "pH"), ("ink", "altInkL", "iH"),
+                              ("accent", "altAccL", "aH")):
+        if dark.get(src):
+            L, C, H = to_oklch(require_hex(dark[src], f"dark.{src}"))
+            state[key] = round(L, 4)
+            d = abs(H - state[hue_key]) % 360
+            d = 360 - d if d > 180 else d
+            if C > 0.02 and d > 15:
+                report.append(("aviso", f"dark.{src}: solo se usa la luminosidad; el tono ({H:.0f}) "
+                                        f"se hereda del principal ({state[hue_key]:.0f})"))
     return state
 
 
