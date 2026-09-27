@@ -220,7 +220,7 @@ def apply_palette(state, pal, report):
             if pal[src] in FONT_SETS[pool]:
                 state[key] = pal[src]
             else:
-                report.append(("aviso", f"fuente '{pal[src]}' no está en el catálogo; "
+                report.append(("aviso", f"fuente '{pal[src]}' no esta en el catalogo; "
                                         f"se conserva {state[key]}"))
 
     for src, key in (("radius", "rad"), ("fontSize", "fs"), ("scaleRatio", "ratio"),
@@ -263,11 +263,11 @@ def audit(state, report):
               ("cuerpo sobre papel", body, page, 4.5),
               ("accent-text sobre papel", acc_text, page, 4.5),
               ("faint sobre papel", faint, page, 3.0),
-              ("señal sobre papel", state["sig"], page, 3.0)]
+              ("senal sobre papel", state["sig"], page, 3.0)]
     for label, fg, bg, need in checks:
         c = contrast(fg, bg)
         tag = "ok" if c >= need else "aviso"
-        report.append((tag, f"{label}: {c:.2f}:1 (mínimo {need})"))
+        report.append((tag, f"{label}: {c:.2f}:1 (minimo {need})"))
 
     c_acc = contrast(acc, page)
     if c_acc < 4.5:
@@ -277,13 +277,13 @@ def audit(state, report):
     d = abs(state["aH"] - to_oklch(state["sig"])[2])
     d = 360 - d if d > 180 else d
     tag = "ok" if d >= 90 else "aviso"
-    report.append((tag, f"separación de tono acento/señal: {d:.0f}° (mínimo recomendado 90)"))
+    report.append((tag, f"separacion de tono acento/senal: {d:.0f} grados (minimo recomendado 90)"))
 
     for i, c in enumerate(state["chCustom"], 1):
         cc = contrast(c, page)
         if cc < 3.0:
             report.append(("nota", f"serie {i} {c} da {cc:.2f}:1; sirve en barra grande, "
-                                   f"no en línea delgada ni leyenda"))
+                                   f"no en linea delgada ni leyenda"))
     return {"page": page, "ink": ink, "accent": acc, "accentText": acc_text}
 
 
@@ -338,7 +338,7 @@ def main():
     print(f"  marca   {brand.get('name', '(sin nombre)')}")
     print(f"  papel   {resolved['page']}   tinta {resolved['ink']}")
     print(f"  acento  {resolved['accent']}   accent-text {resolved['accentText']}")
-    print("  auditoría:")
+    print("  auditoria:")
     for tag, msg in report:
         print(f"    [{tag}] {msg}")
 
