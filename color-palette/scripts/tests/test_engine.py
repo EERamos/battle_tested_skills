@@ -1,3 +1,7 @@
+import base64
+import io
+import zipfile
+
 import pytest
 
 import build
@@ -42,3 +46,15 @@ def test_semantic_text_passes_against_its_wash() -> None:
     res = build.run_js(TPL, default_state(), "auditState(S)")
     wash = [p for p in res["main"] if p["par"].endswith("texto sobre su wash")]
     assert len(wash) == 4 and all(p["cr"] >= 4.5 for p in wash)
+
+
+@needs_node
+def test_buildzip_produces_valid_archive() -> None:
+    expr = ("buildZip([{name:'a.txt',text:'hola ñ'},{name:'b.css',text:':root{}'}])"
+            ".arrayBuffer().then(function(b){return Buffer.from(b).toString('base64');})")
+    b64 = build.run_js(TPL, {}, expr, blocks=("ZIP",))
+    assert b64, "run_js no encontro el bloque ZIP"
+    zf = zipfile.ZipFile(io.BytesIO(base64.b64decode(b64)))
+    assert zf.testzip() is None
+    assert zf.namelist() == ["a.txt", "b.css"]
+    assert zf.read("a.txt").decode("utf-8") == "hola ñ"

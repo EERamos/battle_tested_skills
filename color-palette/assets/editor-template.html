@@ -2222,6 +2222,36 @@ function buildMarkdown(){
   return O.join('\n');
 }
 
+/* ===== ZIP_START ===== */
+/* ZIP sin compresión (STORE), sin dependencias: una sola descarga para "Descargar todo" */
+var CRC_T=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function buildZip(files){
+  var enc=new TextEncoder(),parts=[],central=[],off=0;
+  files.forEach(function(f){
+    var name=enc.encode(f.name),data=enc.encode(f.text),crc=crc32(data);
+    var lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);
+    lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,name.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),name,data);
+    var ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);
+    ch.setUint16(10,0,true);ch.setUint16(12,0,true);ch.setUint16(14,0x21,true);ch.setUint32(16,crc,true);
+    ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,name.length,true);
+    ch.setUint16(30,0,true);ch.setUint16(32,0,true);ch.setUint16(34,0,true);ch.setUint16(36,0,true);
+    ch.setUint32(38,0,true);ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer),name);
+    off+=30+name.length+data.length;
+  });
+  var cd=central.reduce(function(a,p){return a+p.length;},0);
+  var e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(4,0,true);e.setUint16(6,0,true);e.setUint16(8,files.length,true);
+  e.setUint16(10,files.length,true);e.setUint32(12,cd,true);e.setUint32(16,off,true);e.setUint16(20,0,true);
+  return new Blob(parts.concat(central,[new Uint8Array(e.buffer)]),{type:'application/zip'});
+}
+/* ===== ZIP_END ===== */
+
 /* ============ EXPORT ============ */
 $('expTabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
   Array.prototype.forEach.call($('expTabs').children,function(x){x.classList.toggle('on',x===b);});
@@ -2336,11 +2366,13 @@ $('btn-dl').addEventListener('click',function(){
   dl(FN[k][0],pe.textContent,FN[k][1]);});
 $('dlRef').addEventListener('click',function(){dl(SLUG+'-referencia.html',buildReference(),'text/html');});
 $('dlAll').addEventListener('click',function(){
-  dl(SLUG+'-tokens.css',$('out-css').textContent,'text/css');
-  setTimeout(function(){dl(SLUG+'-DESIGN.md',$('out-md').textContent,'text/markdown');},350);
-  setTimeout(function(){dl(SLUG+'-design.yml',$('out-yml').textContent,'text/yaml');},700);
-  setTimeout(function(){dl(SLUG+'-sistema.json',$('out-json').textContent,'application/json');},1050);
-  setTimeout(function(){dl(SLUG+'-referencia.html',buildReference(),'text/html');},1400);});
+  dl(SLUG+'-sistema.zip',buildZip([
+    {name:SLUG+'-tokens.css',text:$('out-css').textContent},
+    {name:SLUG+'-DESIGN.md',text:$('out-md').textContent},
+    {name:SLUG+'-design.yml',text:$('out-yml').textContent},
+    {name:SLUG+'-sistema.json',text:$('out-json').textContent},
+    {name:SLUG+'-fonts.html',text:$('out-font').textContent},
+    {name:SLUG+'-referencia.html',text:buildReference()}]),'application/zip');});
 $('btn-rst').addEventListener('click',function(){
   var snap=JSON.stringify({S:S,THEMES:THEMES});
   holdSave=true; clearTimeout(saveT);
@@ -2519,7 +2551,7 @@ function buildReference(){
 }
 function dl(name,text,type){
   try{
-    var bl=new Blob([text],{type:(type||'text/plain')+';charset=utf-8'});
+    var bl=(text instanceof Blob)?text:new Blob([text],{type:(type||'text/plain')+';charset=utf-8'});
     var u=URL.createObjectURL(bl); var a=document.createElement('a');
     a.href=u; a.download=name; document.body.appendChild(a); a.click();
     setTimeout(function(){URL.revokeObjectURL(u);a.remove();},600);
