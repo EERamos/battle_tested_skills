@@ -98,6 +98,11 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 .exp-pane{display:none}.exp-pane.on{display:block}
 #toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,14px);background:var(--ui-ink);color:#fff;font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;padding:10px 18px;border-radius:999px;opacity:0;pointer-events:none;transition:.28s;z-index:500}
 #toast.on{opacity:1;transform:translate(-50%,0)}
+#undo{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:12px;background:var(--ui-ink);color:#fff;font-size:12px;padding:8px 8px 8px 16px;border-radius:999px;z-index:510;max-width:calc(100vw - 32px)}
+#undo.on{display:flex}
+#undo div{display:flex;gap:6px}
+#undo button{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer}
+#undo button:first-child{background:#fff;color:var(--ui-ink)}
 
 /* ================= PREVIEW ================= */
 .ptabs{position:sticky;top:0;z-index:40;display:flex;gap:2px;background:var(--page,#fff);border-bottom:1px solid var(--hairline,#eee);padding:0 clamp(18px,3vw,40px);overflow-x:auto}
@@ -719,6 +724,7 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
   <div class="acts" style="margin-top:12px"><button class="p" id="impGo">Aplicar</button><button class="s" id="impX">Cancelar</button></div>
 </div></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="undo" role="status" aria-live="polite"><span></span><div></div></div>
 
 <script>
 /* ===== BRAND_START (build.py reemplaza este bloque) ===== */
@@ -1717,6 +1723,16 @@ $('thLoad').addEventListener('click',function(){var th=THEMES[curTheme];if(!th){
 
 /* toast + copy */
 var toast=$('toast'),tId;
+/* toast con botones: msg, [[texto, fn], …], ms (0 = persistente), al expirar */
+var uT;
+function actionToast(msg,btns,ms,onExpire){
+  var u=$('undo'); u.querySelector('span').textContent=msg;
+  var box=u.querySelector('div'); box.innerHTML='';
+  btns.forEach(function(b){var e=document.createElement('button');e.type='button';e.textContent=b[0];
+    e.addEventListener('click',function(){clearTimeout(uT);u.classList.remove('on');b[1]();});box.appendChild(e);});
+  u.classList.add('on'); clearTimeout(uT);
+  if(ms) uT=setTimeout(function(){u.classList.remove('on');if(onExpire)onExpire();},ms);
+}
 function say(m){toast.textContent=m;toast.classList.add('on');clearTimeout(tId);tId=setTimeout(function(){toast.classList.remove('on');},1600);}
 function copy(txt,msg){if(navigator.clipboard&&navigator.clipboard.writeText)
   navigator.clipboard.writeText(txt).then(function(){say(msg||'Copiado');},function(){say('Selecciona y copia');});
@@ -2469,12 +2485,14 @@ function dl(name,text,type){
 /* ============ AUTOGUARDADO ============ */
 var LSK='designsys-'+(BRAND.name||'default').toLowerCase().replace(/[^a-z0-9]+/g,'-');
 var LS=(function(){try{var k='__t';window.localStorage.setItem(k,'1');window.localStorage.removeItem(k);return window.localStorage;}catch(e){return null;}})();
-var saveT;
+var saveT, holdSave=false;
+var SEG_KEYS=['bShape','bCase','bArrow','bHover','shStyle','shTint','easeSel','chScheme','chInk','chChrome','chDark',
+ 'focSrc','lnkSrc','selSrc','slAspect','slLogo','slNum','slBar','emItal','emUp','emDeco','kMark','lDeco'];
 function saveState(){
-  if(!LS)return;
+  if(!LS||holdSave)return;
   clearTimeout(saveT);
   saveT=setTimeout(function(){
-    try{LS.setItem(LSK,JSON.stringify({v:2,S:S,THEMES:THEMES,ts:Date.now()}));markSaved();}catch(e){}
+    try{LS.setItem(LSK,JSON.stringify({v:3,build:D.__build||null,S:S,THEMES:THEMES,ts:Date.now()}));markSaved();}catch(e){}
   },400);
 }
 function markSaved(){
@@ -2486,16 +2504,27 @@ function markSaved(){
   var f=$('fgt'); if(f)f.addEventListener('click',function(){try{LS.removeItem(LSK);}catch(e){} say('Guardado borrado');
     el.innerHTML='<span style="width:6px;height:6px;border-radius:9px;background:var(--ui-muted);display:block"></span>Sin guardado';});
 }
+function applySaved(o){
+  Object.keys(D).forEach(function(k){ if(k!=='__build'&&o.S[k]!==undefined) S[k]=o.S[k]; });
+  if(o.THEMES)THEMES=o.THEMES;
+}
+/* 'restored' | 'stale' (guardado de otro build, apartado en LSK-prev) | 'none' */
 function restoreState(){
-  if(!LS)return false;
+  if(!LS)return 'none';
   try{
-    var raw=LS.getItem(LSK);
-    if(!raw)return false;
-    var o=JSON.parse(raw); if(!o||!o.S)return false;
-    Object.keys(D).forEach(function(k){ if(o.S[k]!==undefined) S[k]=o.S[k]; });
-    if(o.THEMES)THEMES=o.THEMES;
-    return true;
-  }catch(e){return false;}
+    var raw=LS.getItem(LSK); if(!raw)return 'none';
+    var o=JSON.parse(raw); if(!o||!o.S)return 'none';
+    if((o.build||null)!==(D.__build||null)){LS.setItem(LSK+'-prev',raw);return 'stale';}
+    applySaved(o); return 'restored';
+  }catch(e){return 'none';}
+}
+function refreshUI(){
+  setAll();
+  SEG_KEYS.forEach(function(k){press(k,String(S[k]));});
+  press('lvl',String(S.lvl));
+  $('recipes').dataset.built='0';
+  rebuildCustomSwatches();
+  paint(); thLabel();
 }
 /* engancha el guardado a cada repintado */
 var _paint=paint;
@@ -2504,15 +2533,17 @@ paint=function(){_paint();saveState();};
 var restored=restoreState();
 applyBrand();
 setAll();
-/* refleja el estado restaurado en los botones de segmento */
-['bShape','bCase','bArrow','bHover','shStyle','shTint','easeSel','chScheme','chInk','chChrome','chDark',
- 'focSrc','lnkSrc','selSrc','slAspect','slLogo','slNum','slBar','emItal','emUp','emDeco','kMark','lDeco'].forEach(function(k){press(k,String(S[k]));});
+SEG_KEYS.forEach(function(k){press(k,String(S[k]));});
 press('lvl',String(S.lvl));
-if(restored){$('recipes').dataset.built='0';['pre-page','pre-acc','pre-pair'].forEach(clearP);}
+if(restored==='restored'){$('recipes').dataset.built='0';['pre-page','pre-acc','pre-pair'].forEach(clearP);}
 paint();
 thLabel();
 markSaved();
-if(restored) say('Sesión anterior restaurada');
+if(restored==='restored') say('Sesión anterior restaurada');
+if(restored==='stale') actionToast('Hay una sesión guardada de otra versión de este archivo',[
+  ['Restaurar',function(){try{applySaved(JSON.parse(LS.getItem(LSK+'-prev')));LS.removeItem(LSK+'-prev');}catch(e){}
+    ['pre-page','pre-acc','pre-pair'].forEach(clearP);refreshUI();say('Sesión restaurada');}],
+  ['Descartar',function(){try{LS.removeItem(LSK+'-prev');}catch(e){} say('Sesión anterior descartada');}]],0);
 </script>
 </body>
 </html>
