@@ -158,6 +158,7 @@ DEFAULTS = {
     "rH": 188.2, "rC": 0.09, "dvA": 33, "dvB": 258,
     "pos": "#2D8F6F", "neg": "#DD1D1D", "bm": "#87848A",
     "chChrome": "auto", "chDark": 1,
+    "altOn": 1, "altPageL": None, "altInkL": None, "altAccL": None,
     "slAspect": "16:9", "slm": 6, "slts": 1,
     "slLogo": "bl", "slNum": 1, "slBar": 1,
     "rc": {
@@ -238,7 +239,7 @@ def theme_label(page_l: float) -> str:
 
 def print_engine_audit(result: dict[str, Any], state: State) -> None:
     """Imprime el mismo conteo que la seccion de auditoria del DESIGN.md."""
-    alt_l = 0.985 if state["pL"] < 0.55 else 0.17
+    alt_l = state.get("altPageL") or (0.985 if state["pL"] < 0.55 else 0.17)
     for key, page_l in (("main", state["pL"]), ("alt", alt_l)):
         pairs = result.get(key)
         if not pairs:

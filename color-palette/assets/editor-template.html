@@ -1015,6 +1015,10 @@ var D={
  "bm": "#87848A",
  "chChrome": "auto",
  "chDark": 1,
+ "altOn": 1,
+ "altPageL": null,
+ "altInkL": null,
+ "altAccL": null,
  "slAspect": "16:9",
  "slm": 6,
  "slts": 1,
@@ -1209,6 +1213,21 @@ function deriveCtx(st){
   if(st.__alt&&st.pL<.55) ser=seriesDark(ser,t,st);
   return {st:st,t:t,ground:ground,btnBg:btnBg,btnFg:btnFg,onG:onG,ser:ser,serD:seriesDark(ser,t,st)};
 }
+/* ============ TEMA ALTERNO ============
+   Mismas cuatro decisiones, polaridad opuesta. null = automático:
+   principal claro → papel .17, tinta .94 · principal oscuro → papel .985, tinta .23.
+   La señal conserva tono/croma y sube o baja hasta 3:1 contra el papel alterno. */
+function altState(st){
+  st=st||S;
+  var a=JSON.parse(JSON.stringify(st)), mainDark=st.pL<.55;
+  a.pL=st.altPageL!=null?st.altPageL:(mainDark?.985:.17);
+  a.iL=st.altInkL!=null?st.altInkL:(mainDark?.23:.94);
+  if(st.altAccL!=null) a.aL=st.altAccL;
+  var so=toOK(st.sig), pg=OK(a.pL,a.pC,a.pH);
+  a.sig=OK(solveL(so.L,so.C,so.H,pg,3),so.C,so.H);
+  a.__alt=1;
+  return a;
+}
 /* ============ AUDITORÍA ============
    Única lista de pares. La usan el editor, el DESIGN.md y build.py (vía node).
    rol: texto (4.5, o 3 para faint) · grafico (3, WCAG 1.4.11) · decorativo (se mide, no falla) */
@@ -1246,7 +1265,8 @@ function auditPairs(c,withSlides){
 }
 function auditState(st){
   st=st||S;
-  return {main:auditPairs(deriveCtx(st),true), alt:null};
+  return {main:auditPairs(deriveCtx(st),true),
+          alt:st.altOn?auditPairs(deriveCtx(altState(st)),false):null};
 }
 /* ===== ENGINE_END ===== */
 

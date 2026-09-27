@@ -58,3 +58,29 @@ def test_buildzip_produces_valid_archive() -> None:
     assert zf.testzip() is None
     assert zf.namelist() == ["a.txt", "b.css"]
     assert zf.read("a.txt").decode("utf-8") == "hola ñ"
+
+
+@needs_node
+def test_default_alt_theme_has_zero_failures() -> None:
+    res = build.run_js(TPL, default_state(), "auditState(S)")
+    assert res["alt"] is not None
+    assert len(res["alt"]) == 30
+    assert [(p["par"], round(p["cr"], 2)) for p in res["alt"] if not p["ok"]] == []
+
+
+@needs_node
+def test_alt_theme_off_returns_null() -> None:
+    st = default_state()
+    st["altOn"] = 0
+    assert build.run_js(TPL, st, "auditState(S)")["alt"] is None
+
+
+@needs_node
+def test_alt_of_dark_main_is_light() -> None:
+    st = default_state()
+    st["pL"], st["iL"] = 0.17, 0.94
+    assert build.run_js(TPL, st, "altState(S).pL") > 0.9
+
+
+def test_template_D_and_python_DEFAULTS_have_same_keys() -> None:
+    assert set(default_state()) == set(build.DEFAULTS)
