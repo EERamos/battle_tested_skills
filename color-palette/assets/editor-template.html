@@ -2304,10 +2304,17 @@ $('dlAll').addEventListener('click',function(){
   setTimeout(function(){dl(SLUG+'-design.yml',$('out-yml').textContent,'text/yaml');},700);
   setTimeout(function(){dl(SLUG+'-sistema.json',$('out-json').textContent,'application/json');},1050);
   setTimeout(function(){dl(SLUG+'-referencia.html',buildReference(),'text/html');},1400);});
-$('btn-rst').addEventListener('click',function(){S=JSON.parse(JSON.stringify(D));setAll();
-  press('pre-page','base');press('pre-acc','base');press('pre-pair','base');press('lvl','1');
-  press('bShape','pill');press('shStyle','soft');press('chScheme','custom');
-  $('recipes').dataset.built='0';try{if(LS)LS.removeItem(LSK);}catch(e){}paint();say('Reset a la paleta base');});
+$('btn-rst').addEventListener('click',function(){
+  var snap=JSON.stringify({S:S,THEMES:THEMES});
+  holdSave=true; clearTimeout(saveT);
+  S=JSON.parse(JSON.stringify(D));
+  refreshUI();
+  press('pre-page','base');press('pre-acc','base');press('pre-pair','base');
+  actionToast('Restablecido a la paleta base',[['Deshacer',function(){
+      var o=JSON.parse(snap); S=o.S; THEMES=o.THEMES; holdSave=false;
+      ['pre-page','pre-acc','pre-pair'].forEach(clearP); refreshUI(); say('Cambios recuperados');}]],
+    10000, function(){holdSave=false; saveState();});
+});
 
 /* ============ IMPORT ============ */
 function findTokenKey(hex,t){var L=tokenList(t);for(var i=0;i<L.length;i++)if(L[i][2].toUpperCase()===hex.toUpperCase())return L[i][0];return null;}
