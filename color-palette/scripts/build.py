@@ -32,7 +32,23 @@ Cada valor se valida contra el contraste WCAG antes de escribir y el script
 imprime un reporte. Nunca falla en silencio: si una elección no alcanza el
 mínimo, lo dice y sigue, porque la decisión es del usuario, no del script.
 """
-import argparse, json, math, os, re, sys
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import unicodedata
+from typing import Any
+
+State = dict[str, Any]
 
 # ------------------------------------------------------------------ color ---
 M1 = ((.4122214708, .5363325363, .0514459929),
@@ -182,6 +198,48 @@ FONT_SETS = {
     "mono": ["Roboto Mono", "IBM Plex Mono", "JetBrains Mono", "Space Mono",
              "DM Mono", "Source Code Pro", "Azeret Mono"],
 }
+
+
+# ----------------------------------------------------------------- engine ---
+class EngineError(RuntimeError):
+    """node existe pero el motor JS fallo al ejecutarse."""
+
+
+def engine_source(template: str, blocks: tuple[str, ...] = ("ENGINE",)) -> str:
+    """Concatena todos los bloques /* ===== NAME_START ===== */ ... _END del template."""
+    parts: list[str] = []
+    for name in blocks:
+        pat = rf"/\* ===== {name}_START ===== \*/(.*?)/\* ===== {name}_END ===== \*/"
+        parts.extend(re.findall(pat, template, re.S))
+    return "\n".join(parts)
+
+
+def run_js(template: str, state: State, expr: str,
+           blocks: tuple[str, ...] = ("ENGINE",)) -> Any:
+    """Evalua `expr` con el motor JS del template y `S = state`.
+
+    Devuelve None si no hay node o el template no trae esos bloques.
+    Lanza EngineError si node falla. `expr` puede devolver una Promise.
+    """
+    node = shutil.which("node")
+    src = engine_source(template, blocks)
+    if node is None or not src.strip():
+        return None
+    js = ("var S=" + json.dumps(state) + ";\n" + src + "\n"
+          "Promise.resolve(" + expr + ").then(function(v){"
+          "process.stdout.write(JSON.stringify(v));});\n")
+    fd, path = tempfile.mkstemp(suffix=".js")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(js)
+        proc = subprocess.run([node, path], capture_output=True, text=True,
+                              encoding="utf-8", timeout=30)
+    finally:
+        os.unlink(path)
+    if proc.returncode != 0:
+        first = (proc.stderr.strip().splitlines() or ["sin salida"])[0]
+        raise EngineError(first)
+    return json.loads(proc.stdout)
 
 
 # ------------------------------------------------------------------ build ---
