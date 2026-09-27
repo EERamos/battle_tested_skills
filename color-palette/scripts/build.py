@@ -264,12 +264,48 @@ def print_engine_audit(result: dict[str, Any], state: State) -> None:
             print(f"    [x] {ascii_text(p['par'])}: {p['cr']:.2f}:1 (minimo {p['min']})")
 
 
+# ------------------------------------------------------------------ input ---
+class PaletteError(ValueError):
+    """Entrada invalida: se reporta con mensaje claro y exit 2."""
+
+
+HEX_RE = re.compile(r"^#?(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$")
+
+READABLE_KEYS = frozenset({
+    "page", "ink", "accent", "signal", "textBody", "textMuted", "textFaint",
+    "semantic", "fontDisplay", "fontBody", "fontMono", "radius", "fontSize",
+    "scaleRatio", "lineHeightBody", "gridColumns", "gutter", "containerMax",
+    "accentLevel", "aspect", "chart", "chartPositive", "chartNegative",
+    "chartBenchmark", "chartHighlight", "slides", "dark",
+})
+
+
+def require_hex(value: object, field: str) -> str:
+    if not isinstance(value, str) or not HEX_RE.match(value):
+        raise PaletteError(f"'{field}' no es un hex valido: {value!r} (usa #RRGGBB)")
+    return value if value.startswith("#") else "#" + value
+
+
 # ------------------------------------------------------------------ build ---
-def apply_palette(state, pal, report):
+def apply_palette(state: State, pal: dict[str, Any],
+                  report: list[tuple[str, str]]) -> State:
     """Traduce una propuesta legible a los parámetros internos del editor."""
-    def put_oklch(hexv, keys):
+    def put_oklch(hexv: str, keys: tuple[str, str, str]) -> None:
         L, C, H = to_oklch(hexv)
         state[keys[0]], state[keys[1]], state[keys[2]] = L, C, H
+
+    for key, value in pal.items():
+        if key in READABLE_KEYS:
+            continue
+        if key in state and key != "__build":
+            state[key] = value
+        else:
+            report.append(("aviso", f"clave desconocida '{key}' (ignorada)"))
+
+    for key in ("page", "ink", "accent", "signal", "textBody", "textMuted", "textFaint",
+                "chartPositive", "chartNegative", "chartBenchmark", "chartHighlight"):
+        if pal.get(key):
+            pal[key] = require_hex(pal[key], key)
 
     if pal.get("page"):
         put_oklch(pal["page"], ("pL", "pC", "pH"))
@@ -291,7 +327,8 @@ def apply_palette(state, pal, report):
                       ("danger", "hDa"), ("info", "hIn")):
         if name in sem:
             v = sem[name]
-            state[key] = to_oklch(v)[2] if isinstance(v, str) else float(v)
+            state[key] = (to_oklch(require_hex(v, f"semantic.{name}"))[2]
+                          if isinstance(v, str) else float(v))
 
     for src, key, pool in (("fontDisplay", "fDisp", "disp"),
                            ("fontBody", "fBody", "body"),
@@ -311,9 +348,13 @@ def apply_palette(state, pal, report):
             state[key] = pal[src]
 
     ch = pal.get("chart")
-    if ch and len(ch) == 6:
-        state["chCustom"] = [c.upper() for c in ch]
-        state["chScheme"] = "custom"
+    if ch is not None:
+        if not isinstance(ch, list) or len(ch) != 6:
+            n = len(ch) if isinstance(ch, list) else "?"
+            report.append(("aviso", f"chart necesita 6 series; recibi {n} (ignorado)"))
+        else:
+            state["chCustom"] = [require_hex(c, f"chart[{i}]").upper() for i, c in enumerate(ch)]
+            state["chScheme"] = "custom"
     for src, key in (("chartPositive", "pos"), ("chartNegative", "neg"),
                      ("chartBenchmark", "bm"), ("chartHighlight", "hl")):
         if pal.get(src):
@@ -382,7 +423,7 @@ def render(template, state, brand):
     return out
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser(description="Genera el editor de paleta.")
     ap.add_argument("--out", required=True)
     ap.add_argument("--palette", help="JSON con la propuesta de color")
@@ -394,19 +435,25 @@ def main():
     tpl_path = args.template or os.path.join(here, "..", "assets", "editor-template.html")
     if not os.path.exists(tpl_path):
         sys.exit(f"No encuentro la plantilla en {tpl_path}")
-    template = open(tpl_path, encoding="utf-8").read()
+    with open(tpl_path, encoding="utf-8") as fh:
+        template = fh.read()
 
     m = re.search(r"/\* ===== BRAND_START.*?var BRAND=(\{.*?\});\n/\* ===== BRAND_END",
                   template, re.S)
-    brand = json.loads(m.group(1)) if m else {}
+    brand: dict[str, Any] = json.loads(m.group(1)) if m else {}
+    state: State = json.loads(json.dumps(DEFAULTS))
+    report: list[tuple[str, str]] = []
 
-    state = json.loads(json.dumps(DEFAULTS))
-    report = []
-
-    if args.palette:
-        state = apply_palette(state, json.load(open(args.palette, encoding="utf-8")), report)
-    if args.brand:
-        brand.update(json.load(open(args.brand, encoding="utf-8")))
+    try:
+        if args.palette:
+            with open(args.palette, encoding="utf-8") as fh:
+                state = apply_palette(state, json.load(fh), report)
+        if args.brand:
+            with open(args.brand, encoding="utf-8") as fh:
+                brand.update(json.load(fh))
+    except (PaletteError, json.JSONDecodeError, OSError) as exc:
+        print(f"[error] {ascii_text(str(exc))}", file=sys.stderr)
+        sys.exit(2)
     brand.pop("railTitle", None)
 
     checks: list[tuple[str, str]] = []
