@@ -1200,6 +1200,45 @@ function deriveCtx(st){
   if(st.__alt&&st.pL<.55) ser=seriesDark(ser,t,st);
   return {st:st,t:t,ground:ground,btnBg:btnBg,btnFg:btnFg,onG:onG,ser:ser,serD:seriesDark(ser,t,st)};
 }
+/* ============ AUDITORÍA ============
+   Única lista de pares. La usan el editor, el DESIGN.md y build.py (vía node).
+   rol: texto (4.5, o 3 para faint) · grafico (3, WCAG 1.4.11) · decorativo (se mide, no falla) */
+function auditPairs(c,withSlides){
+  var st=c.st,t=c.t,P=t.page,A=[];
+  function add(n,fg,bg,min,rol){var cr=CR(fg,bg);
+    A.push({par:n,fg:fg,bg:bg,min:min,rol:rol,cr:cr,ok:rol==='decorativo'||cr>=min});}
+  add('Cuerpo de texto sobre el fondo',t.body,P,4.5,'texto');
+  add('Texto secundario (muted) sobre el fondo',t.muted,P,4.5,'texto');
+  add('Texto tenue (faint) sobre el fondo',t.faint,P,3,'texto');
+  add('Tinta sobre el fondo',t.ink,P,4.5,'texto');
+  add('Enlace sobre el fondo',t.link,P,4.5,'texto');
+  add('Enlace en hover sobre el fondo',t.linkHover,P,4.5,'texto');
+  add('Acento base sobre el fondo',t.acc,P,3,'grafico');
+  add('Accent-text sobre el fondo',t.accText,P,4.5,'texto');
+  add('Señal sobre el fondo',t.sig,P,3,'grafico');
+  add('Anillo de foco sobre el fondo',t.focus,P,3,'grafico');
+  add('Borde de control sobre el fondo',t.ctlBd,P,3,'grafico');
+  add('Línea fuerte sobre el fondo (decorativa)',t.lineS,P,3,'decorativo');
+  add('Texto del botón sólido sobre el botón',c.btnFg,c.btnBg,4.5,'texto');
+  add('Texto sobre el panel lleno',c.onG,c.ground,4.5,'texto');
+  add('Texto deshabilitado sobre su fondo (exento, WCAG 1.4.3)',t.disFg,t.disBg,3,'decorativo');
+  var selFg=CR('#FFFFFF',t.sel)>=CR(P,t.sel)?'#FFFFFF':P;
+  add('Texto sobre el resalte de selección',selFg,t.sel,4.5,'texto');
+  ['success','warning','danger','info'].forEach(function(n,i){
+    var lbl=['Éxito','Aviso','Peligro','Info'][i];
+    add(lbl+': texto sobre su wash',t[n+'Text'],t[n+'Wash'],4.5,'texto');
+    add(lbl+': color base sobre el fondo',t[n],P,3,'grafico');
+  });
+  c.ser.forEach(function(col,i){add('Serie de gráfica '+(i+1)+' sobre el fondo',col,P,3,'grafico');});
+  if(withSlides) SLIDE_TYPES.forEach(function(s){var rr=resolveRecipe(s[0],t,st);
+    add('Slide · '+s[1]+': texto sobre su fondo',rr.tx,rr.bg,4.5,'texto');
+    add('Slide · '+s[1]+': realce sobre su fondo',rr.ac,rr.bg,3,'grafico');});
+  return A;
+}
+function auditState(st){
+  st=st||S;
+  return {main:auditPairs(deriveCtx(st),true), alt:null};
+}
 /* ===== ENGINE_END ===== */
 
 /* ============ PAINT ============ */
