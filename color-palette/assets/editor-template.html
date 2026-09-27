@@ -103,7 +103,9 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 #toast.on{opacity:1;transform:translate(-50%,0)}
 #undo{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:12px;background:var(--ui-ink);color:#fff;font-size:12px;padding:8px 8px 8px 16px;border-radius:999px;z-index:510;max-width:calc(100vw - 32px)}
 #undo.on{display:flex}
-#undo div{display:flex;gap:6px}
+#undo{flex-wrap:wrap;border-radius:20px}
+#undo span{flex:1 1 200px}
+#undo div{display:flex;gap:6px;flex:none}
 #undo button{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer}
 #undo button:first-child{background:#fff;color:var(--ui-ink)}
 
@@ -111,6 +113,9 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
 .ptabs{position:sticky;top:0;z-index:40;display:flex;gap:2px;background:var(--page,#fff);border-bottom:1px solid var(--hairline,#eee);padding:0 clamp(18px,3vw,40px);overflow-x:auto}
 .ptabs button{font-family:var(--fmono);font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;padding:13px 11px;border:none;background:transparent;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .ptabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.ptabs .vtheme{margin:7px 0 7px auto;flex:none;display:flex;border:1px solid var(--hairline,#ddd);border-radius:999px;overflow:hidden;position:sticky;right:0;background:var(--page,#fff);box-shadow:-10px 0 10px var(--page,#fff)}
+.ptabs .vtheme button{padding:6px 12px;margin:0;border-bottom:none;color:var(--text-muted)}
+.ptabs .vtheme button.on{background:var(--ink);color:var(--page);border-bottom-color:transparent}
 .scope{background:var(--page);color:var(--text-body);font-family:var(--fbody);min-height:100vh;--ease:var(--ease-std)}
 .pv{display:none;padding:clamp(24px,3vw,44px) clamp(18px,3vw,40px) 90px;max-width:var(--maxw);margin-inline:auto}
 .pv.on{display:block}
@@ -355,6 +360,14 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
       <div class="hexrow"><input type="color" id="sPick"><input type="text" id="sHex" spellcheck="false"></div>
       <p class="hint" id="sigwarn"></p>
     </div>
+    <div class="grp"><h2><span id="altTitle">Tema oscuro</span> <b id="sw-alt"></b></h2>
+      <div class="seg" id="altOn"><button data-v="1" class="on">Generar</button><button data-v="0">No generar</button></div>
+      <div class="sl"><div class="sl-h"><label>Papel · luminosidad</label><output id="o-altPageL"></output></div><input type="range" id="altPageL" min="4" max="100" step="0.05"></div>
+      <div class="sl"><div class="sl-h"><label>Tinta · luminosidad</label><output id="o-altInkL"></output></div><input type="range" id="altInkL" min="4" max="100" step="0.05"></div>
+      <div class="sl"><div class="sl-h"><label>Acento · luminosidad</label><output id="o-altAccL"></output></div><input type="range" id="altAccL" min="30" max="95" step="0.05"></div>
+      <div class="presets"><button type="button" id="altAuto">Volver a automático</button></div>
+      <p class="hint">Sale de las mismas cuatro decisiones: tono y croma se heredan; sólo cambia la luminosidad. El acento de texto y la señal se re-resuelven contra el papel nuevo.</p>
+    </div>
     <div class="grp"><h2>Contraste medido</h2><div class="cx" id="cx"></div></div>
   </div>
 
@@ -581,6 +594,7 @@ select{width:100%;font-family:var(--bodyui);font-size:12.5px;padding:7px 9px;bor
     <button data-p="pagina" class="on">Página</button><button data-p="comp">Componentes</button>
     <button data-p="graf">Gráficas</button><button data-p="tipo">Tipografía</button>
     <button data-p="slides">Presentación</button><button data-p="tokens">Tokens</button>
+    <div class="seg vtheme" id="vTheme"><button data-v="main" class="on">Claro</button><button data-v="alt">Oscuro</button></div>
   </div>
 
   <section class="pv on" data-p="pagina">
@@ -1272,9 +1286,11 @@ function auditState(st){
 
 /* ============ PAINT ============ */
 function paint(){
-  var C0=deriveCtx(S),t=C0.t,lv=S.lvl,useAcc=lv>=1;
-  var ground=C0.ground, btnBg=C0.btnBg, onG=C0.onG, btnFg=C0.btnFg;
-  var sh=shadows(t),r=S.rad,ser=C0.ser,serD=C0.serD;
+  /* C0 = tema principal; CV = el que se ve en la vista previa (principal o alterno) */
+  var C0=deriveCtx(S), CV=(S.altOn&&VIEW==='alt')?deriveCtx(altState(S)):C0;
+  var t=CV.t,lv=S.lvl,useAcc=lv>=1;
+  var ground=CV.ground, btnBg=CV.btnBg, onG=CV.onG, btnFg=CV.btnFg;
+  var sh=shadows(t),r=S.rad,ser=CV.ser,serD=CV.serD;
   var ease={expo:'cubic-bezier(0.16,1,0.3,1)',smooth:'cubic-bezier(0.4,0,0.2,1)',linear:'linear'}[S.easeSel];
   var s=scope.style,set=function(k,v){s.setProperty(k,v);};
 
@@ -1311,8 +1327,10 @@ function paint(){
   set('--lnk-dl',S.lDeco); set('--lnk-dw',S.lW+'px'); set('--lnk-do',S.lO+'px');
   set('--chip-mark',vChip);
   var co=toOK(vChip);
-  set('--chip-bg', OK(Math.min(.975,Math.max(S.pL-.02,.90)), Math.min(.028,co.C*.16), co.H));
-  set('--chip-line', OK(.89, Math.min(.06,co.C*.32), co.H));
+  var vDark=CV.st.pL<.55;
+  set('--chip-bg', vDark ? OK(.28, Math.min(.028,co.C*.16), co.H)
+                         : OK(Math.min(.975,Math.max(CV.st.pL-.02,.90)), Math.min(.028,co.C*.16), co.H));
+  set('--chip-line', OK(vDark?.36:.89, Math.min(.06,co.C*.32), co.H));
   set('--ground',ground);set('--on-ground',onG);
   set('--on-ground-soft',onG==='#FFFFFF'?'rgba(255,255,255,.76)':'rgba(21,44,81,.76)');
   set('--btn-bg',btnBg);set('--btn-fg',btnFg);set('--btn-sb',t.ctlBd);
@@ -1396,6 +1414,20 @@ function paint(){
   $('m-h2').textContent=(S.fs*Math.pow(S.ratio,2.6)).toFixed(0)+'px';
   $('m-b1').textContent=S.fBody+' 400';$('m-b2').textContent=S.fs+'px · LH '+S.lhb;$('m-b3').textContent='Medida '+S.meas+'ch';
   $('m-m1').textContent=S.fMono+' · tracking '+S.trm+'em';
+
+  /* desde aquí: rail, slides, tokens y exports usan siempre el tema principal */
+  var o2=function(id,v){var e=$(id);if(e)e.textContent=v;};
+  t=C0.t; ground=C0.ground; btnBg=C0.btnBg; btnFg=C0.btnFg; onG=C0.onG; ser=C0.ser; serD=C0.serD; sh=shadows(t);
+  vEmph=rv(S.roleEmph,useAcc?t.accText:t.ink); vKick=rv(S.roleKick,useAcc?t.accText:t.ink);
+  vIdx=rv(S.roleIdx,useAcc?t.accText:t.ink); vChip=rv(S.roleChip,t.acc);
+  eDC=S.emDecoC==='auto'?vEmph:tokVal(S.emDecoC,t); eBG=S.emBg==='none'?'transparent':tokVal(S.emBg,t);
+  var A1=S.altOn?altState(S):null, altT=A1?deriveCtx(A1).t:null, mainDark=S.pL<.55;
+  $('altTitle').textContent=mainDark?'Tema claro':'Tema oscuro';
+  var vb=$('vTheme').children; vb[0].textContent=mainDark?'Oscuro':'Claro'; vb[1].textContent=mainDark?'Claro':'Oscuro';
+  $('sw-alt').style.background=altT?altT.page:'transparent';
+  o2('o-altPageL', A1?(A1.pL*100).toFixed(1)+'%'+(S.altPageL==null?' auto':''):'—');
+  o2('o-altInkL', A1?(A1.iL*100).toFixed(1)+'%'+(S.altInkL==null?' auto':''):'—');
+  o2('o-altAccL', A1?(S.altAccL==null?'hereda':(S.altAccL*100).toFixed(1)+'%'):'—');
 
   /* rail chrome */
   ['sw-emph','sw-kick2','sw-chip2'].forEach(function(id,i){var e=$(id);
@@ -1666,6 +1698,13 @@ sld('d1','d1',1);sld('d2','d2',1);sld('d3','d3',1);
 sld('mutL','mutL',100);sld('mutC','mutC',1000);
 sld('rH','rH',1);sld('rC','rC',1000);sld('dvA','dvA',1);sld('dvB','dvB',1);
 sld('slm','slm',1);sld('slts','slts',100);
+var VIEW='main';
+sld('altPageL','altPageL',100);sld('altInkL','altInkL',100);sld('altAccL','altAccL',100);
+segB('altOn','altOn',function(v){return +v;},function(v){if(v==='0'&&VIEW==='alt'){VIEW='main';press('vTheme','main');}});
+$('altAuto').addEventListener('click',function(){S.altPageL=S.altInkL=S.altAccL=null;setAll();paint();say('Tema alterno automático');});
+$('vTheme').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+  if(b.dataset.v==='alt'&&!S.altOn){say('Activa el tema alterno en Color');return;}
+  VIEW=b.dataset.v;press('vTheme',VIEW);paint();});
 ['emW','emTr','emDW','emDO','emPad','emRad','kMS','kMul','kTr','iMul','lW','lO'].forEach(function(k){sld(k,k,1);});
 
 function setAll(){var v=function(id,x){var e=$(id);if(e)e.value=x;};
@@ -1684,6 +1723,7 @@ function setAll(){var v=function(id,x){var e=$(id);if(e)e.value=x;};
   v('mutL',S.mutL*100);v('mutC',S.mutC*1000);v('rH',S.rH);v('rC',S.rC*1000);v('dvA',S.dvA);v('dvB',S.dvB);
   v('slm',S.slm);v('slts',S.slts*100);
   ['emW','emTr','emDW','emDO','emPad','emRad','kMS','kMul','kTr','iMul','lW','lO'].forEach(function(k){v(k,S[k]);});
+  var A0=altState(S); v('altPageL',A0.pL*100); v('altInkL',A0.iL*100); v('altAccL',A0.aL*100);
   v('fDisp',S.fDisp);v('fBody',S.fBody);v('fMono',S.fMono);}
 function press(g,n){var e=$(g);if(!e)return;Array.prototype.forEach.call(e.children,function(b){
   b.classList.toggle('on',b.dataset.p===n||b.dataset.v===n||b.dataset.l===n);});}
@@ -1729,7 +1769,7 @@ $('fixink').addEventListener('click',function(){S.iL=S.pL>.55?.296:.95;setAll();
 $('tabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
   Array.prototype.forEach.call($('tabs').children,function(x){x.classList.toggle('on',x===b);});
   document.querySelectorAll('.rail-scroll .tp').forEach(function(p){p.classList.toggle('on',p.dataset.t===b.dataset.t);});});
-$('ptabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
+$('ptabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b||b.parentElement!==$('ptabs'))return;
   Array.prototype.forEach.call($('ptabs').children,function(x){x.classList.toggle('on',x===b);});
   document.querySelectorAll('.pv').forEach(function(p){p.classList.toggle('on',p.dataset.p===b.dataset.p);});});
 /* temas */
@@ -2277,6 +2317,7 @@ $('expTabs').addEventListener('click',function(e){var b=e.target.closest('button
   Array.prototype.forEach.call($('expTabs').children,function(x){x.classList.toggle('on',x===b);});
   document.querySelectorAll('.exp-pane').forEach(function(p){p.classList.toggle('on',p.dataset.e===b.dataset.e);});});
 $('btn-exp').addEventListener('click',function(){
+  if(VIEW!=='main'){VIEW='main';press('vTheme','main');paint();}
   var t=window.__T,x=window.__X,r=S.rad,sp=[1,2,3,4,6,10,16,24].map(function(m){return S.spb*m;});
   var css=':root{\n  /* superficie */\n  --page:'+t.page+';\n  --surface:'+t.surface+';\n  --surface-2:'+t.surf2+';\n  --hairline:'+t.hair+';\n  --line-strong:'+t.lineS+';\n  --control-border:'+t.ctlBd+';\n'+
   '  /* tinta */\n  --ink:'+t.ink+';\n  --ink-soft:'+t.inkSoft+';\n  --ink-deep:'+t.inkDeep+';\n'+
@@ -2583,7 +2624,7 @@ var LSK='designsys-'+(BRAND.name||'default').toLowerCase().replace(/[^a-z0-9]+/g
 var LS=(function(){try{var k='__t';window.localStorage.setItem(k,'1');window.localStorage.removeItem(k);return window.localStorage;}catch(e){return null;}})();
 var saveT, holdSave=false;
 var SEG_KEYS=['bShape','bCase','bArrow','bHover','shStyle','shTint','easeSel','chScheme','chInk','chChrome','chDark',
- 'focSrc','lnkSrc','selSrc','slAspect','slLogo','slNum','slBar','emItal','emUp','emDeco','kMark','lDeco'];
+ 'focSrc','lnkSrc','selSrc','slAspect','slLogo','slNum','slBar','emItal','emUp','emDeco','kMark','lDeco','altOn'];
 function saveState(){
   if(!LS||holdSave)return;
   clearTimeout(saveT);
