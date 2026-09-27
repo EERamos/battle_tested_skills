@@ -1878,7 +1878,9 @@ function buildMarkdown(){
   W('exportar. Editar este archivo a mano lo desincroniza del CSS y del JSON.');
   W('');
   W('**Estado de la auditoría:** '+(AUD.length-fails.length)+' de '+AUD.length+' pares medidos cumplen su mínimo'+
-    (fails.length?'. **'+fails.length+' no cumplen** — lista completa en la sección 15.':'. Sin excepciones.'));
+    (fails.length?'. **'+fails.length+' no cumplen** — lista completa en la sección 16.':'. Sin excepciones.'));
+  if(AR.alt){var af=AR.alt.filter(function(a){return !a.ok;}).length;
+    W('**Tema '+(S.pL<.55?'claro':'oscuro')+':** '+(AR.alt.length-af)+' de '+AR.alt.length+' pares cumplen.');}
 
   /* ---------- 1. las cuatro decisiones ---------- */
   H(2,'1. Las cuatro decisiones');
@@ -2213,8 +2215,32 @@ function buildMarkdown(){
   W('.slide--cover { --sl-bg: …; --sl-tx: …; --sl-ac: …; --sl-fg: …; --sl-line: …; --sl-card: …; }');
   W('```');
 
-  /* ---------- 15. auditoría ---------- */
-  H(2,'15. Auditoría de contraste');
+  /* ---------- 15. tema alterno ---------- */
+  var altNm=S.pL<.55?'claro':'oscuro';
+  H(2,'15. Tema '+altNm);
+  if(!AR.alt){
+    W('No se genera en este sistema. Actívalo en Color → Tema '+altNm+' y vuelve a exportar.');
+  } else {
+    var A2=altState(S), CA2=deriveCtx(A2), ta=CA2.t, afails=AR.alt.filter(function(a){return !a.ok;});
+    W('Derivado de las **mismas cuatro decisiones**: tono y croma se heredan; cambia la luminosidad del papel ('+
+      (A2.pL*100).toFixed(1)+'%), de la tinta ('+(A2.iL*100).toFixed(1)+'%) y'+
+      (S.altAccL==null?' el acento se hereda.':' del acento ('+(S.altAccL*100).toFixed(1)+'%).')+
+      ' `accent-text`, la señal y los textos semánticos se re-resuelven contra el papel '+altNm+'.');
+    W('En CSS vive en `@media (prefers-color-scheme)` y en `:root[data-theme]`; sólo cambian los tokens de color.');
+    T(['Token','Principal','Tema '+altNm,'Contraste (tema '+altNm+')'],
+      [['page',t.page,ta.page,'—'],['surface',t.surface,ta.surface,crs(ta.surface,ta.page)],
+       ['control-border',t.ctlBd,ta.ctlBd,crs(ta.ctlBd,ta.page)],['ink',t.ink,ta.ink,crs(ta.ink,ta.page)],
+       ['text-body',t.body,ta.body,crs(ta.body,ta.page)],['text-muted',t.muted,ta.muted,crs(ta.muted,ta.page)],
+       ['text-faint',t.faint,ta.faint,crs(ta.faint,ta.page)],['accent',t.acc,ta.acc,crs(ta.acc,ta.page)],
+       ['accent-text',t.accText,ta.accText,crs(ta.accText,ta.page)],['signal',t.sig,ta.sig,crs(ta.sig,ta.page)],
+       ['focus',t.focus,ta.focus,crs(ta.focus,ta.page)],['link',t.link,ta.link,crs(ta.link,ta.page)]]
+      .map(function(r){return [r[0],hx(r[1]),hx(r[2]),r[3]];}));
+    W('**Auditoría del tema '+altNm+':** '+(AR.alt.length-afails.length)+' de '+AR.alt.length+' pares cumplen'+
+      (afails.length?'; no cumplen: '+afails.map(function(a){return a.par+' ('+a.cr.toFixed(2)+':1)';}).join(', ')+'.':'.'));
+  }
+
+  /* ---------- 16. auditoría ---------- */
+  H(2,'16. Auditoría de contraste');
   W('**'+AUD.length+' pares medidos.** '+(AUD.length-fails.length)+' cumplen su mínimo, '+fails.length+' no. '+
     'Los pares **decorativos** se miden e informan pero no cuentan como falla: WCAG no les exige contraste '+
     '(líneas que no delimitan un control; componentes deshabilitados, 1.4.3).');
@@ -2237,7 +2263,7 @@ function buildMarkdown(){
       a.rol==='decorativo'?'n/a':(a.ok?'sí':'**no**')];}));
 
   /* ---------- 16. reglas ---------- */
-  H(2,'16. Reglas que este sistema hace cumplir');
+  H(2,'17. Reglas que este sistema hace cumplir');
   W('Están medidas, no son opinión. El editor las verifica en vivo y el generador las audita.');
   W('');
   W('1. **El acento casi nunca lleva texto.** Aquí `--accent` mide '+crs(t.acc,P)+
@@ -2257,14 +2283,15 @@ function buildMarkdown(){
   W('8. **La sombra se gana.** Tres niveles y nada más; la jerarquía de plano la lleva `--surface`.');
 
   /* ---------- 17. cómo consumirlo ---------- */
-  H(2,'17. Cómo consumir este sistema');
-  W('Los cinco archivos que exporta el editor:');
+  H(2,'18. Cómo consumir este sistema');
+  W('Los seis archivos que exporta el editor (**Descargar todo** los entrega en un solo `…-sistema.zip`):');
   W('');
   T(['Archivo','Qué es','Para quién'],[
-    ['`…-tokens.css`','el `:root{}` completo más un bloque por tipo de slide','implementación'],
+    ['`…-tokens.css`','el `:root{}` completo, el tema '+altNm+' si está activo, y un bloque por tipo de slide','implementación'],
     ['`…-DESIGN.md`','este documento','equipo, revisión, onboarding'],
     ['`…-design.yml`','los mismos valores como frontmatter YAML','pipelines, generadores'],
-    ['`…-sistema.json`','el **estado completo** del editor, reimportable','volver a este punto exacto'],
+    ['`…-sistema.json`','el **estado completo** del editor, reimportable (y la entrada de `build.py --state`)','volver a este punto exacto'],
+    ['`…-fonts.html`','el `<link>` de Google Fonts','implementación'],
     ['`…-referencia.html`','el sistema entero renderizado, autocontenido','compartir, imprimir, revisar sin el editor']
   ]);
   W('```html');
@@ -2316,6 +2343,25 @@ function buildZip(files){
 $('expTabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;
   Array.prototype.forEach.call($('expTabs').children,function(x){x.classList.toggle('on',x===b);});
   document.querySelectorAll('.exp-pane').forEach(function(p){p.classList.toggle('on',p.dataset.e===b.dataset.e);});});
+/* tokens de color de un contexto, para :root y para el bloque del tema alterno */
+function colorVars(c){var t=c.t,L=['--page:'+t.page,'--surface:'+t.surface,'--surface-2:'+t.surf2,'--hairline:'+t.hair,
+  '--line-strong:'+t.lineS,'--control-border:'+t.ctlBd,'--ink:'+t.ink,'--ink-soft:'+t.inkSoft,'--ink-deep:'+t.inkDeep,
+  '--text-body:'+t.body,'--text-muted:'+t.muted,'--text-faint:'+t.faint];
+  t.accScale.forEach(function(col,i){L.push('--accent-'+t.accNames[i]+':'+col);});
+  L=L.concat(['--accent:'+t.acc,'--accent-deep:'+t.accDeep,'--accent-text:'+t.accText,'--accent-wash:'+t.accWash,
+    '--accent-line:'+t.accLine,'--signal:'+t.sig,'--ground:'+c.ground,'--btn-bg:'+c.btnBg,'--btn-fg:'+c.btnFg,'--on-ground:'+c.onG]);
+  ['success','warning','danger','info'].forEach(function(n){L.push('--'+n+':'+t[n],'--'+n+'-wash:'+t[n+'Wash'],
+    '--'+n+'-line:'+t[n+'Line'],'--'+n+'-text:'+t[n+'Text']);});
+  L=L.concat(['--focus:'+t.focus,'--disabled-bg:'+t.disBg,'--disabled-fg:'+t.disFg,'--disabled-border:'+t.disBd,
+    '--link:'+t.link,'--link-hover:'+t.linkHover,'--selection-bg:'+t.sel]);
+  c.ser.forEach(function(col,i){L.push('--chart-'+(i+1)+':'+col);});
+  return L.map(function(l){return '  '+l+';';}).join('\n');}
+function altCss(){
+  if(!S.altOn)return '';
+  var CA=deriveCtx(altState(S)), q=S.pL<.55?'light':'dark', nq=q==='dark'?'light':'dark', v=colorVars(CA);
+  return '\n/* ---- tema '+(q==='dark'?'oscuro':'claro')+' (derivado): sólo cambian los tokens de color ---- */\n'+
+    '@media (prefers-color-scheme: '+q+'){\n:root:not([data-theme="'+nq+'"]){\n'+v+'\n}\n}\n'+
+    ':root[data-theme="'+q+'"]{\n'+v+'\n}\n';}
 $('btn-exp').addEventListener('click',function(){
   if(VIEW!=='main'){VIEW='main';press('vTheme','main');paint();}
   var t=window.__T,x=window.__X,r=S.rad,sp=[1,2,3,4,6,10,16,24].map(function(m){return S.spb*m;});
@@ -2357,7 +2403,7 @@ $('btn-exp').addEventListener('click',function(){
   '  --chart-positive:'+S.pos+';\n  --chart-negative:'+S.neg+';\n  --chart-axis:'+(S.chChrome==='soft'?t.hair:S.chChrome==='strong'?t.body:t.muted)+';\n'+
   x.seq.map(function(c,i){return '  --chart-seq-'+(i+1)+':'+c+';';}).join('\n')+'\n'+
   x.div.map(function(c,i){return '  --chart-div-'+(i+1)+':'+c+';';}).join('\n')+'\n'+
-  '  /* presentación */\n  --slide-aspect:'+x.ar[0]+';\n  --slide-margin:'+S.slm+'%;\n  --slide-title-scale:'+S.slts.toFixed(2)+';\n}\n\n'+
+  '  /* presentación */\n  --slide-aspect:'+x.ar[0]+';\n  --slide-margin:'+S.slm+'%;\n  --slide-title-scale:'+S.slts.toFixed(2)+';\n}\n'+altCss()+'\n'+
   '/* ---- recetas de slide: cada tipo con su fondo, tipo y realce ---- */\n'+
   SLIDE_TYPES.map(function(stp){var k=stp[0],rr=resolveRecipe(k,t);
     return '.slide--'+k+'{\n  --sl-bg:'+rr.bg+';\n  --sl-tx:'+rr.tx+';\n  --sl-ac:'+rr.ac+';\n  --sl-fg:'+rr.fg+
@@ -2396,11 +2442,20 @@ $('btn-exp').addEventListener('click',function(){
   '  slideNumbers: '+(S.slNum?'true':'false')+'\n  progressBar: '+(S.slBar?'true':'false')+'\n'+
   '  recipes:\n'+rcy;
 
+  var CA=S.altOn?deriveCtx(altState(S)):null, altName=S.pL<.55?'light':'dark';
+  if(CA){var ta=CA.t,qq=function(c){return '"'+c+'"';};
+    yml+='\n'+altName+':\n  page: "'+ta.page+'"\n  surface: "'+ta.surface+'"\n  hairline: "'+ta.hair+'"\n  control-border: "'+ta.ctlBd+'"\n'+
+      '  ink: "'+ta.ink+'"\n  text-body: "'+ta.body+'"\n  text-muted: "'+ta.muted+'"\n  text-faint: "'+ta.faint+'"\n'+
+      '  accent: "'+ta.acc+'"\n  accent-text: "'+ta.accText+'"\n  signal: "'+ta.sig+'"\n  focus: "'+ta.focus+'"\n  link: "'+ta.link+'"\n'+
+      '  categorical: ['+CA.ser.map(qq).join(', ')+']';}
   var json=JSON.stringify({__designsys:2,savedAt:new Date().toISOString(),S:S,THEMES:THEMES,
     resolved:{colors:{page:t.page,surface:t.surface,surface2:t.surf2,hairline:t.hair,lineStrong:t.lineS,controlBorder:t.ctlBd,
       ink:t.ink,inkSoft:t.inkSoft,inkDeep:t.inkDeep,textBody:t.body,textMuted:t.muted,textFaint:t.faint,
       accent:t.acc,accentDeep:t.accDeep,accentText:t.accText,accentScale:t.accScale,signal:t.sig,
       ground:x.ground,btnBg:x.btnBg,btnFg:x.btnFg},
+    alt: CA?{theme:altName,colors:{page:CA.t.page,surface:CA.t.surface,hairline:CA.t.hair,controlBorder:CA.t.ctlBd,ink:CA.t.ink,
+      textBody:CA.t.body,textMuted:CA.t.muted,textFaint:CA.t.faint,accent:CA.t.acc,accentText:CA.t.accText,signal:CA.t.sig,
+      focus:CA.t.focus,link:CA.t.link,categorical:CA.ser}}:null,
     semantic:{success:t.success,warning:t.warning,danger:t.danger,info:t.info},
     roles:{emphasis:x.vEmph,kicker:x.vKick,index:x.vIdx,chip:x.vChip},
     dataViz:{categorical:x.ser,categoricalDark:x.serD,sequential:x.seq,diverging:x.div,
@@ -2605,9 +2660,13 @@ function buildReference(){
    '.stage{display:block}\n.pv{display:block!important}\n'+
    '.scope{min-height:auto}\nbody{margin:0}\n.pv{max-width:'+S.maxw+'px;margin-inline:auto}\n'+
    '.slides-grid .slide{aspect-ratio:'+x.ar[0]+'}\n'+
+   (S.altOn?'html[data-theme="alt"] .scope{\n'+colorVars(deriveCtx(altState(S)))+'\n}\n'+
+     '.thbtn{position:fixed;top:12px;right:12px;z-index:60;font:600 12px/1 system-ui;padding:9px 14px;border-radius:999px;border:1px solid currentColor;background:var(--page);color:var(--ink);cursor:pointer}\n':'')+
    '@media print{.pv{break-inside:avoid}.slides-grid{grid-template-columns:1fr}}\n'+
    '</style></head><body>'+
+   (S.altOn?'<button class="thbtn" onclick="var h=document.documentElement;h.dataset.theme=h.dataset.theme===\'alt\'?\'\':\'alt\'">Tema '+(S.pL<.55?'claro':'oscuro')+'</button>':'')+
    '<div class="scope">'+head+clone.innerHTML+'</div>'+
+   (S.altOn?'<p style="font:12px system-ui;opacity:.7;padding:0 24px 24px">Las gráficas de este documento se muestran en el tema principal.</p>':'')+
    '</body></html>';
 }
 function dl(name,text,type){
