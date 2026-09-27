@@ -286,6 +286,31 @@ def require_hex(value: object, field: str) -> str:
     return value if value.startswith("#") else "#" + value
 
 
+def load_state_file(path: str, state: State, report: list[tuple[str, str]]) -> State:
+    """Aplica el S de un sistema.json exportado por el editor sobre `state`."""
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    saved = data.get("S") if isinstance(data, dict) else None
+    if not isinstance(saved, dict):
+        raise PaletteError(f"{path} no es un sistema.json del editor (falta 'S')")
+    for key, value in saved.items():
+        if key == "__build":
+            continue
+        if key in state:
+            state[key] = value
+        else:
+            report.append(("aviso", f"--state: clave desconocida '{key}' (ignorada)"))
+    if any(data.get("THEMES") or []):
+        report.append(("nota", "--state: los slots de recetas (THEMES) no se incrustan; "
+                               "importa el JSON en el editor para recuperarlos"))
+    return state
+
+
+def build_id(state: State) -> str:
+    digest = hashlib.sha1(json.dumps(state, sort_keys=True).encode("utf-8")).hexdigest()[:8]
+    return f"{digest}-{int(time.time())}"
+
+
 # ------------------------------------------------------------------ build ---
 def apply_palette(state: State, pal: dict[str, Any],
                   report: list[tuple[str, str]]) -> State:
@@ -429,6 +454,7 @@ def main() -> None:
     ap.add_argument("--palette", help="JSON con la propuesta de color")
     ap.add_argument("--brand", help="JSON con nombre y copy de marca")
     ap.add_argument("--template", help="ruta a editor-template.html")
+    ap.add_argument("--state", help="sistema.json exportado por el editor; se aplica antes de --palette")
     args = ap.parse_args()
 
     here = os.path.dirname(os.path.abspath(__file__))
@@ -445,6 +471,8 @@ def main() -> None:
     report: list[tuple[str, str]] = []
 
     try:
+        if args.state:
+            state = load_state_file(args.state, state, report)
         if args.palette:
             with open(args.palette, encoding="utf-8") as fh:
                 state = apply_palette(state, json.load(fh), report)
@@ -455,6 +483,8 @@ def main() -> None:
         print(f"[error] {ascii_text(str(exc))}", file=sys.stderr)
         sys.exit(2)
     brand.pop("railTitle", None)
+    if not args.brand and brand.get("name"):
+        report.append(("aviso", f"la plantilla trae la marca '{brand['name']}' y no pasaste --brand"))
 
     checks: list[tuple[str, str]] = []
     resolved = audit(state, checks)
@@ -465,6 +495,7 @@ def main() -> None:
     except EngineError as exc:
         engine_err = str(exc)
 
+    state["__build"] = build_id(state)
     out = render(template, state, brand)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as fh:

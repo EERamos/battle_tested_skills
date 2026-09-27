@@ -46,3 +46,29 @@ def test_invalid_hex_exits_2_without_traceback(tmp_path: Path) -> None:
     assert proc.returncode == 2
     assert "Traceback" not in proc.stderr
     assert "accent" in proc.stderr and "#GG0000" in proc.stderr
+
+
+def test_state_file_survives_rebuild(tmp_path: Path) -> None:
+    saved = {"__designsys": 2, "S": {"bShape": "square", "rad": 3}, "THEMES": [None, None, None]}
+    proc, out = run_build(tmp_path, "--state", write_json(tmp_path, "s.json", saved),
+                          "--palette", write_json(tmp_path, "p.json", {"accent": "#C2703A"}))
+    html = out.read_text(encoding="utf-8")
+    assert proc.returncode == 0, proc.stderr
+    assert '"bShape": "square"' in html and '"rad": 3' in html
+
+
+def test_state_file_without_S_is_an_error(tmp_path: Path) -> None:
+    proc, _ = run_build(tmp_path, "--state", write_json(tmp_path, "s.json", {"foo": 1}))
+    assert proc.returncode == 2 and "falta 'S'" in proc.stderr
+
+
+def test_build_id_is_embedded(tmp_path: Path) -> None:
+    _, out = run_build(tmp_path)
+    assert re.search(r'"__build": "[0-9a-f]{8}-\d+"', out.read_text(encoding="utf-8"))
+
+
+def test_printed_size_equals_disk(tmp_path: Path) -> None:
+    proc, out = run_build(tmp_path)
+    m = re.search(r"\(([\d,]+) bytes\)", proc.stdout)
+    assert m, proc.stdout
+    assert int(m.group(1).replace(",", "")) == os.path.getsize(out)
