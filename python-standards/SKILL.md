@@ -38,7 +38,7 @@ These hold for every file, however small.
 - **Verification**: grep `except:`, `except Exception`, `filterwarnings("ignore"` and `record=True`; every hit names its exception or category, or re-raises/re-emits.
 
 ### NaN as well as None
-- A value taken from a table can be NaN, not only None. Check it with `pd.isna(x)` (or `math.isnan` for a plain float), never with `x is None` alone.
+- A value taken from a DataFrame, Series or NumPy array can be NaN, not only None. Check it with `pd.isna(x)` (or `math.isnan` for a plain float), never with `x is None` alone.
 - `.mean()` and `.sum()` skip NaN without telling you: count them first (`s.isna().sum()`) and decide what a missing value means.
 - `value or fallback` does not protect you: NaN is truthy.
 - No guard is needed where a NaN already shows up as a FAIL in the output.
@@ -47,7 +47,7 @@ These hold for every file, however small.
 
 ### Explicit dates, parameters and paths
 - No hidden "today": `date.today()` / `datetime.now()` may stamp when something ran, never decide which data to use. Pass the as-of date in.
-- Each path and each parameter is defined once for the whole project (one config module or constants block) and imported from there.
+- Each path and each parameter is defined once for the whole project (one config module; in a single-file script or notebook, one constants block at the top) and used from there.
 - What is written is read back through the same path variable.
 - **Why**: a hidden "today" makes yesterday's run impossible to reproduce; a path typed twice drifts and the reader opens a stale file.
 - **Verification**: grep `today()`, `now()` and string literals ending in a file extension; each hit is a run stamp or lives in the single definition.
@@ -73,7 +73,7 @@ These hold for every file, however small.
 
 ## Library level: defining your own types
 
-Everything below applies to library code. Scripts take type annotations and pytest from here; notebooks take none of it.
+Everything below applies to library code. Scripts take *Type annotations*, *Constraining types*, *Collections* and *Testing (pytest)* from here; notebooks take none of it.
 
 ### Enums
 - Use `enum.Enum` and `enum.auto()`. No magic numbers or raw strings for categories.

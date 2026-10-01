@@ -20,7 +20,7 @@ Read this for `.ipynb` files and for `.py` files run cell by cell. It replaces t
 - **Why**: a stale output documents code that no longer exists, and a hand-cleaned one leaks again on the next run.
 
 ## Results
-- Results go to a file the notebook itself writes.
+- Results someone will quote or reuse go to a file the notebook itself writes. Exploratory prints don't count.
 - Numbers quoted in generated text are read from the data, never typed in.
 - **Why**: a typed number stays the same when the data changes.
 
