@@ -7,6 +7,52 @@ description: Robust Python coding standards — enums, dataclasses, Protocols, d
 
 Operating rules for all Python code. Where a rule can be checked mechanically, its section ends with a **Verification** — how to prove it held.
 
+## Any code
+
+These hold for every file, however small.
+
+### Exceptions and warnings
+- No bare `except:` and no `except Exception: pass`. Catch the exceptions you can name and handle.
+- Don't turn an error into a default value (`except KeyError: return 0`) unless that default is the documented meaning of "missing".
+- Don't silence every warning at once (`warnings.filterwarnings("ignore")`); filter by category and message.
+- A `warnings.catch_warnings(record=True)` block re-emits whatever it does not handle.
+- **Why**: a swallowed error turns into a wrong number downstream, far from its cause.
+- **Verification**: grep `except:`, `except Exception`, `filterwarnings("ignore"` and `record=True`; every hit names its exception or category, or re-raises/re-emits.
+
+### NaN as well as None
+- A value taken from a table can be NaN, not only None. Check it with `pd.isna(x)` (or `math.isnan` for a plain float), never with `x is None` alone.
+- `.mean()` and `.sum()` skip NaN without telling you: count them first (`s.isna().sum()`) and decide what a missing value means.
+- `value or fallback` does not protect you: NaN is truthy.
+- No guard is needed where a NaN already shows up as a FAIL in the output.
+- **Why**: NaN spreads quietly; an average over a half-empty column still looks like a valid number.
+- **Verification**: every value read from a DataFrame or array that reaches a branch or an aggregate has an `isna` check, or a NaN count, before it.
+
+### Explicit dates, parameters and paths
+- No hidden "today": `date.today()` / `datetime.now()` may stamp when something ran, never decide which data to use. Pass the as-of date in.
+- Each path and each parameter is defined once for the whole project (one config module or constants block) and imported from there.
+- What is written is read back through the same path variable.
+- **Why**: a hidden "today" makes yesterday's run impossible to reproduce; a path typed twice drifts and the reader opens a stale file.
+- **Verification**: grep `today()`, `now()` and string literals ending in a file extension; each hit is a run stamp or lives in the single definition.
+
+### Checks end in a verdict
+- A check (validation, reconciliation, a test script) prints PASS or FAIL and exits non-zero on FAIL.
+- Expected differences are named in the code with their reason, never eyeballed.
+- **Why**: a check that only prints numbers depends on someone reading them every time.
+- **Verification**: run it on a known-bad input; the exit code is non-zero.
+
+### The simplest change that works
+- A fix touches what the fix needs. No renames, refactors or cleanup of unrelated code in the same change.
+- **Why**: mixed diffs hide the line that matters and make a revert risky.
+
+### Mutable defaults
+- No mutable default literals anywhere: function arguments (`def f(x=[])`) as well as dataclass fields. Default to `None` and build inside, or use `field(default_factory=...)`.
+- **Verification**: `ruff` rule `B006`, or grep signatures for `=[]`, `={}` and `=set()`.
+
+### Batch jobs finish before you read them
+- A batch (backtest, backfill, bulk export) must finish completely, with its exit code checked, before its results are read or reported.
+- **Why**: partial output looks like full output; a backtest read halfway describes a different strategy.
+- **Verification**: the reader checks a completion marker (exit code, expected row count, a done file) before loading results.
+
 ## Enums
 - Use `enum.Enum` and `enum.auto()`. No magic numbers or raw strings for categories.
 - Style: `class MyEnum(Enum):` with UPPERCASE member names.
