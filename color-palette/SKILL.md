@@ -134,7 +134,7 @@ Nunca entregues sin abrirlo. Como mínimo:
 - `build.py` no avisó de claves desconocidas ni de marca heredada de la plantilla
 
 Si tienes navegador disponible, ábrelo y toma una captura. Si no, verifica el
-tamaño y que el HTML contenga `TOKENS_END`, `#slGrid`, `btn-save` y `buildMarkdown`.
+tamaño y que el HTML contenga `TOKENS_END`, `id="slGrid"`, `btn-save` y `buildMarkdown`.
 
 ### 5. Entrega
 
