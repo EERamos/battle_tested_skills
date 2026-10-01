@@ -87,3 +87,34 @@ def test_dark_block_warns_when_hue_is_dropped(tmp_path: Path) -> None:
     pal = {"dark": {"page": "#3A0A0A"}}
     proc, _ = run_build(tmp_path, "--palette", write_json(tmp_path, "p.json", pal))
     assert "solo se usa la luminosidad" in proc.stdout
+
+
+LOW_CONTRAST = {"page": "#FFFFFF", "ink": "#BBBBBB", "accent": "#F5E663", "signal": "#F0E060"}
+
+
+@needs_node
+def test_failing_audit_without_strict_still_exits_0(tmp_path: Path) -> None:
+    proc, _ = run_build(tmp_path, "--palette", write_json(tmp_path, "p.json", LOW_CONTRAST))
+    assert proc.returncode == 0, proc.stderr
+    assert re.search(r"auditoria \(tema claro\): \d+ pares, [1-9]\d* no cumplen", proc.stdout)
+
+
+@needs_node
+def test_strict_exits_1_when_a_pair_fails(tmp_path: Path) -> None:
+    proc, out = run_build(tmp_path, "--strict",
+                          "--palette", write_json(tmp_path, "p.json", LOW_CONTRAST))
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "[strict]" in proc.stdout
+    assert out.exists()
+
+
+@needs_node
+def test_strict_exits_0_when_every_pair_passes(tmp_path: Path) -> None:
+    proc, _ = run_build(tmp_path, "--strict")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_strict_without_node_exits_1(tmp_path: Path) -> None:
+    proc, _ = run_build(tmp_path, "--strict", env=env_without_node())
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert "[parcial]" in proc.stdout and "[strict]" in proc.stdout

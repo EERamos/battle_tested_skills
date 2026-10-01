@@ -123,6 +123,11 @@ con node): pares medidos, cuántos no cumplen y cuáles. Repórtala tal cual. Si
 Los pares **decorativos** (líneas que no delimitan un control, texto deshabilitado) se
 informan pero no cuentan como falla: WCAG no les exige contraste.
 
+Por defecto la auditoría solo informa y el build sale con 0 aunque haya fallas. Para
+usarla como compuerta (CI o el validador de un proyecto), añade `--strict`: sale con 1
+si algún par no cumple o si la auditoría quedó `[parcial]`. El HTML se escribe igual,
+para que se pueda abrir y corregir.
+
 ### 4. Verifica antes de entregar
 
 Nunca entregues sin abrirlo. Como mínimo:
