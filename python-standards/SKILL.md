@@ -110,12 +110,12 @@ Everything below applies to library code. Scripts take type annotations and pyte
 - **Verification**: Run `pytest`; all tests pass and failures have clear messages.
 
 ### Property-based testing (hypothesis)
-- Use Hypothesis. Define strategies (e.g. `st.integers()`, `st.lists()`) for generated data.
+- Use Hypothesis when it is installed (or the project already depends on it); don't add the dependency just to satisfy this rule. Define strategies (e.g. `st.integers()`, `st.lists()`) for generated data.
 - Aim to find edge cases (e.g. division by zero, empty lists) that examples miss.
 - **Verification**: Run a hypothesis test that exposes a bug (e.g. wrong handling of zero or empty input).
 
 ### Mutation testing
-- Use mutmut or similar. Reason about mutant survival.
+- Use mutmut or similar when the deliverable is the tests themselves (a new suite, or a request to harden one). Reason about mutant survival.
 - Focus: testing the tests — the suite should detect logic changes.
 - **Verification**: Introduce a small bug (mutate code); the test suite must fail.
 
