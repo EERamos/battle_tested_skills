@@ -1,8 +1,15 @@
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
-from helpers import env_without_node, needs_node, run_build, write_json
+import pytest
+
+import build
+from helpers import env_without_node, needs_node, run_build, template_text, write_json
+
+ENGINE_END = "/* ===== ENGINE_END ===== */"
 
 
 @needs_node
@@ -87,3 +94,58 @@ def test_dark_block_warns_when_hue_is_dropped(tmp_path: Path) -> None:
     pal = {"dark": {"page": "#3A0A0A"}}
     proc, _ = run_build(tmp_path, "--palette", write_json(tmp_path, "p.json", pal))
     assert "solo se usa la luminosidad" in proc.stdout
+
+
+def engine_with_tail(tmp_path: Path, js: str) -> str:
+    """Copia la plantilla con `js` al final del ultimo bloque ENGINE; devuelve la ruta."""
+    head, tail = template_text().rsplit(ENGINE_END, 1)
+    p = tmp_path / "tpl.html"
+    p.write_text(head + js + "\n" + ENGINE_END + tail, encoding="utf-8")
+    return str(p)
+
+
+def assert_partial_fallback(proc: subprocess.CompletedProcess[str], out: Path) -> None:
+    assert proc.returncode == 0, proc.stderr
+    assert "Traceback" not in proc.stderr
+    assert out.exists()
+    assert "[aviso] el motor JS fallo" in proc.stdout and "[parcial]" in proc.stdout
+    assert proc.stdout.isascii(), proc.stdout
+
+
+@needs_node
+def test_engine_non_json_stdout_falls_back_to_partial(tmp_path: Path) -> None:
+    tpl = engine_with_tail(tmp_path, 'process.stdout.write("no es json ");')
+    proc, out = run_build(tmp_path, "--template", tpl)
+    assert_partial_fallback(proc, out)
+
+
+@needs_node
+def test_engine_that_never_resolves_falls_back_to_partial(tmp_path: Path) -> None:
+    tpl = engine_with_tail(tmp_path, "function auditState(){return new Promise(function(){});}")
+    proc, out = run_build(tmp_path, "--template", tpl)
+    assert_partial_fallback(proc, out)
+
+
+def fake_timeout(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+    raise subprocess.TimeoutExpired(cmd, kw.get("timeout", 30))
+
+
+def test_run_js_timeout_raises_engine_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(build.shutil, "which", lambda _: "node")
+    monkeypatch.setattr(build.subprocess, "run", fake_timeout)
+    with pytest.raises(build.EngineError) as exc:
+        build.run_js(template_text(), {}, "1+1")
+    assert str(exc.value).isascii() and "30" in str(exc.value)
+
+
+def test_engine_timeout_still_writes_html(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                          capsys: pytest.CaptureFixture[str]) -> None:
+    out = tmp_path / "out.html"
+    monkeypatch.setattr(build.shutil, "which", lambda _: "node")
+    monkeypatch.setattr(build.subprocess, "run", fake_timeout)
+    monkeypatch.setattr(sys, "argv", ["build.py", "--out", str(out)])
+    build.main()
+    stdout = capsys.readouterr().out
+    assert out.exists()
+    assert "[aviso] el motor JS fallo" in stdout and "[parcial]" in stdout
+    assert stdout.isascii(), stdout
