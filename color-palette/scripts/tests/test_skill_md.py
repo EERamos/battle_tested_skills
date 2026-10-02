@@ -6,8 +6,9 @@ from helpers import SKILL, run_build
 
 
 def skill_md_markers() -> list[str]:
-    text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-    m = re.search(r"que el HTML contenga (.+?)\.\s*$", text, re.M)
+    # Se normalizan los espacios: reacomodar el parrafo no debe romper la busqueda.
+    text = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    m = re.search(r"que el HTML contenga (.+?)\.(?:\s|$)", text)
     assert m, "SKILL.md ya no lista los marcadores del paso 4"
     return re.findall(r"`([^`]+)`", m.group(1))
 
