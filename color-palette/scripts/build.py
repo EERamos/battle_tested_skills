@@ -18,8 +18,12 @@ plantilla con node y reporta los mismos pares que el DESIGN.md. Sin node imprime
 un chequeo parcial de 6 pares marcado [parcial].
 
 Por defecto la auditoria solo informa: el build sale con 0 aunque haya pares que
-no cumplen. Con --strict sale con 1 si algun par no cumple o si la auditoria es
-parcial (sin node no se puede certificar el sistema); el HTML se escribe igual.
+no cumplen. Con --strict sale con 3 si algun par no cumple o si la auditoria es
+parcial (sin node, o si el motor no devuelve el tema principal, no se puede
+certificar el sistema); el HTML se escribe igual.
+
+Codigos de salida: 0 ok; 1 error inesperado (plantilla ausente, excepcion);
+2 entrada invalida; 3 --strict no certifica la paleta.
 """
 from __future__ import annotations
 
@@ -241,11 +245,17 @@ def theme_label(page_l: float) -> str:
     return "tema oscuro" if page_l < 0.55 else "tema claro"
 
 
-def print_engine_audit(result: dict[str, Any], state: State) -> int:
+EXIT_STRICT = 3
+
+
+def print_engine_audit(result: dict[str, Any], state: State) -> int | None:
     """Imprime el mismo conteo que la seccion de auditoria del DESIGN.md.
 
-    Devuelve cuantos pares no cumplen, sumando ambos temas.
+    Devuelve cuantos pares no cumplen, sumando ambos temas, o None sin imprimir
+    nada si el motor no trajo el tema principal: esa auditoria es parcial.
     """
+    if not result.get("main"):
+        return None
     alt_l = state.get("altPageL") or (0.985 if state["pL"] < 0.55 else 0.17)
     total = 0
     for key, page_l in (("main", state["pL"]), ("alt", alt_l)):
@@ -522,7 +532,9 @@ def main() -> None:
     fails: int | None = None
     if isinstance(engine, dict):
         fails = print_engine_audit(engine, state)
-    else:
+        if fails is None:
+            engine_err = engine_err or "no devolvio la auditoria del tema principal"
+    if fails is None:
         if engine_err:
             print(f"    [aviso] el motor JS fallo: {ascii_text(engine_err)}")
         print("  [parcial] 6 pares medidos en Python; instala node para la auditoria "
@@ -532,11 +544,11 @@ def main() -> None:
 
     if args.strict:
         if fails is None:
-            print("  [strict] auditoria parcial: no certifica el sistema; exit 1")
-            sys.exit(1)
+            print(f"  [strict] auditoria parcial: no certifica el sistema; exit {EXIT_STRICT}")
+            sys.exit(EXIT_STRICT)
         if fails:
-            print(f"  [strict] {fails} pares no cumplen; exit 1")
-            sys.exit(1)
+            print(f"  [strict] {fails} pares no cumplen; exit {EXIT_STRICT}")
+            sys.exit(EXIT_STRICT)
 
 
 if __name__ == "__main__":

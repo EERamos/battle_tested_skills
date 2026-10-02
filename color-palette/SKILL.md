@@ -124,9 +124,10 @@ Los pares **decorativos** (líneas que no delimitan un control, texto deshabilit
 informan pero no cuentan como falla: WCAG no les exige contraste.
 
 Por defecto la auditoría solo informa y el build sale con 0 aunque haya fallas. Para
-usarla como compuerta (CI o el validador de un proyecto), añade `--strict`: sale con 1
+usarla como compuerta (CI o el validador de un proyecto), añade `--strict`: sale con 3
 si algún par no cumple o si la auditoría quedó `[parcial]`. El HTML se escribe igual,
-para que se pueda abrir y corregir.
+para que se pueda abrir y corregir. El 3 es propio de `--strict`: 1 es un error
+inesperado (plantilla ausente, excepción) y 2 una entrada inválida.
 
 ### 4. Verifica antes de entregar
 

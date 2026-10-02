@@ -2,7 +2,9 @@ import os
 import re
 from pathlib import Path
 
-from helpers import env_without_node, needs_node, run_build, write_json
+import build
+from helpers import (default_state, env_without_node, needs_node, run_build, template_text,
+                     write_json)
 
 
 @needs_node
@@ -100,10 +102,10 @@ def test_failing_audit_without_strict_still_exits_0(tmp_path: Path) -> None:
 
 
 @needs_node
-def test_strict_exits_1_when_a_pair_fails(tmp_path: Path) -> None:
+def test_strict_exits_3_when_a_pair_fails(tmp_path: Path) -> None:
     proc, out = run_build(tmp_path, "--strict",
                           "--palette", write_json(tmp_path, "p.json", LOW_CONTRAST))
-    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert proc.returncode == 3, proc.stdout + proc.stderr
     assert "[strict]" in proc.stdout
     assert out.exists()
 
@@ -114,7 +116,39 @@ def test_strict_exits_0_when_every_pair_passes(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
-def test_strict_without_node_exits_1(tmp_path: Path) -> None:
+@needs_node
+def test_strict_ignores_a_decorative_pair_below_its_minimum(tmp_path: Path) -> None:
+    res = build.run_js(template_text(), default_state(), "auditState(S)")
+    below = [p for p in res["main"] if p["rol"] == "decorativo" and p["cr"] < p["min"]]
+    assert below, "precondicion: el default trae un par decorativo bajo su minimo"
+    proc, _ = run_build(tmp_path, "--strict")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+ALT_ONLY_FAILS = {"dark": {"page": "#3A3A3A", "ink": "#555555"}}
+
+
+@needs_node
+def test_strict_counts_a_failure_only_in_the_alt_theme(tmp_path: Path) -> None:
+    proc, _ = run_build(tmp_path, "--strict",
+                        "--palette", write_json(tmp_path, "p.json", ALT_ONLY_FAILS))
+    assert "auditoria (tema claro): 50 pares, 0 no cumplen" in proc.stdout, proc.stdout
+    assert proc.returncode == 3, proc.stdout + proc.stderr
+
+
+@needs_node
+def test_strict_treats_a_missing_main_audit_as_partial(tmp_path: Path) -> None:
+    tpl = template_text()
+    end = tpl.rindex("/* ===== ENGINE_END ===== */")
+    broken = tmp_path / "tpl.html"
+    broken.write_text(tpl[:end] + "function auditState(){return {alt:[]};}\n" + tpl[end:],
+                      encoding="utf-8")
+    proc, _ = run_build(tmp_path, "--strict", "--template", str(broken))
+    assert proc.returncode == 3, proc.stdout + proc.stderr
+    assert "[parcial]" in proc.stdout and "[strict]" in proc.stdout
+
+
+def test_strict_without_node_exits_3(tmp_path: Path) -> None:
     proc, _ = run_build(tmp_path, "--strict", env=env_without_node())
-    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert proc.returncode == 3, proc.stdout + proc.stderr
     assert "[parcial]" in proc.stdout and "[strict]" in proc.stdout
