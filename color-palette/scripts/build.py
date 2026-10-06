@@ -213,7 +213,8 @@ def run_js(template: str, state: State, expr: str,
     """Evalua `expr` con el motor JS del template y `S = state`.
 
     Devuelve None si no hay node o el template no trae esos bloques.
-    Lanza EngineError si node falla. `expr` puede devolver una Promise.
+    Lanza EngineError si node falla, excede el timeout o no imprime JSON.
+    `expr` puede devolver una Promise.
     """
     node = shutil.which("node")
     src = engine_source(template, blocks)
@@ -222,18 +223,25 @@ def run_js(template: str, state: State, expr: str,
     js = ("var S=" + json.dumps(state) + ";\n" + src + "\n"
           "Promise.resolve(" + expr + ").then(function(v){"
           "process.stdout.write(JSON.stringify(v));});\n")
+    timeout = 30
     fd, path = tempfile.mkstemp(suffix=".js")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(js)
         proc = subprocess.run([node, path], capture_output=True, text=True,
-                              encoding="utf-8", timeout=30)
+                              encoding="utf-8", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise EngineError(f"node no termino en {timeout} s") from None
     finally:
         os.unlink(path)
     if proc.returncode != 0:
         first = (proc.stderr.strip().splitlines() or ["sin salida"])[0]
         raise EngineError(first)
-    return json.loads(proc.stdout)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        got = proc.stdout.strip()[:60] or "vacia"
+        raise EngineError(f"salida de node no es JSON ({got})") from None
 
 
 def ascii_text(s: str) -> str:
