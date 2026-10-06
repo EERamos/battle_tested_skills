@@ -11,7 +11,7 @@ Read this when the code loads, transforms or caches tabular data. It adds to the
 ## Operating
 - Don't iterate rows for arithmetic (`iterrows`, `itertuples` loops, `apply(axis=1)`); use vectorized operations.
 - Take `.copy()` when you slice a frame you will modify, and don't chain assignments (`df[a][b] = x`); use `df.loc[rows, col] = x`.
-- A ratio whose denominator has no meaning at ≤ 0 (P/E, debt/EBITDA) is masked to NaN, and the masked cases are counted and reported. Signed ratios where a negative denominator is valid (a hedge ratio, a change over a negative base) stay as they are.
+- A ratio whose denominator has no meaning at ≤ 0 (P/E, debt/EBITDA, a percent change over a negative base) is masked to NaN, and the masked cases are counted and reported. Ratios where a negative denominator is valid (downside capture, which divides by the benchmark's negative return) stay as they are.
 - **Why**: row loops are slow and hide logic; chained assignment may write to a temporary copy; a P/E over negative earnings looks like a valid number.
 - **Verification**: grep `iterrows`, `itertuples`, `axis=1` and `][`-assignments; every ratio of the first kind has its mask and a count next to it.
 
